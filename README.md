@@ -43,3 +43,7 @@ npm run lint       # optional lint check
 ## 📈 Notes
 - All conversion work is client-side for speed and privacy.
 - Large bundles come from the rich conversion toolchain; consider further code-splitting if you add more features.
+
+## 📬 Contact
+- Portfolio: https://muhammad-sharjeel-portfolio.netlify.app/
+- Email: sharry00010@gmail.com
