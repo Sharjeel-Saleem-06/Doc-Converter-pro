@@ -16,13 +16,13 @@ import { useConversion } from '@/contexts/ConversionContext';
 import { useTheme, useTranslation } from '@/contexts/ThemeContext';
 import { conversionService, SupportedFormat, ConversionOptions, downloadFile, getFileExtension, formatFileSize } from '@/lib/conversionService';
 import { toast } from 'react-hot-toast';
-import { 
-  Upload, 
-  FileText, 
-  Download, 
-  Trash2, 
-  Eye, 
-  Settings, 
+import {
+  Upload,
+  FileText,
+  Download,
+  Trash2,
+  Eye,
+  Settings,
   Zap,
   CheckCircle,
   AlertCircle,
@@ -57,7 +57,7 @@ const ConverterPage: React.FC = () => {
   const { state, addFiles, removeFile, updateFileStatus, addConvertedFile, setProcessing, clearConvertedFiles } = useConversion();
   const { settings } = useTheme();
   const { t } = useTranslation();
-  
+
   const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
   const [outputFormat, setOutputFormat] = useState<SupportedFormat>('pdf');
   const [conversionOptions, setConversionOptions] = useState<ConversionOptions>({
@@ -86,7 +86,7 @@ const ConverterPage: React.FC = () => {
     const content = await file.text().catch(() => '');
     const detectedFormat = conversionService.detectFormat(file.name, content);
     const suggestedFormats = conversionService.suggestOptimalFormat(content, detectedFormat);
-    
+
     return { detectedFormat, suggestedFormats };
   }, []);
 
@@ -122,18 +122,18 @@ const ConverterPage: React.FC = () => {
 
     try {
       const filesWithPreview: FileWithPreview[] = [];
-      
+
       for (const file of acceptedFiles) {
         try {
           const { detectedFormat, suggestedFormats } = await analyzeFile(file);
-          
+
           const fileWithPreview: FileWithPreview = Object.assign(file, {
             id: `${file.name}-${Date.now()}-${Math.random()}`,
             detectedFormat,
             suggestedFormats,
             preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
           });
-          
+
           filesWithPreview.push(fileWithPreview);
         } catch (error) {
           console.error(`Error processing file ${file.name}:`, error);
@@ -143,7 +143,7 @@ const ConverterPage: React.FC = () => {
 
       if (filesWithPreview.length > 0) {
         setSelectedFiles(prev => [...prev, ...filesWithPreview]);
-        
+
         // Auto-suggest output format based on first file
         if (filesWithPreview.length > 0 && filesWithPreview[0].suggestedFormats) {
           const suggested = filesWithPreview[0].suggestedFormats[0];
@@ -155,7 +155,7 @@ const ConverterPage: React.FC = () => {
             });
           }
         }
-        
+
         toast.success(`${filesWithPreview.length} file(s) added successfully!`, {
           icon: '📁',
           duration: 3000,
@@ -206,34 +206,100 @@ const ConverterPage: React.FC = () => {
   // Real-time preview generation
   const generatePreview = useCallback(async (file: FileWithPreview) => {
     try {
-      const content = await file.text();
       let preview = '';
-      
-      switch (file.detectedFormat) {
-        case 'md':
-          // Convert markdown to HTML for preview
-          const MarkdownIt = (await import('markdown-it')).default;
-          const md = new MarkdownIt();
-          preview = md.render(content.substring(0, 2000));
-          break;
-        case 'html':
-          preview = content.substring(0, 2000);
-          break;
-        case 'json':
-          try {
-            const jsonData = JSON.parse(content);
-            preview = `<pre><code>${JSON.stringify(jsonData, null, 2).substring(0, 2000)}</code></pre>`;
-          } catch {
-            preview = `<pre><code>${content.substring(0, 2000)}</code></pre>`;
-          }
-          break;
-        default:
-          preview = `<pre style="white-space: pre-wrap;">${content.substring(0, 2000)}</pre>`;
+
+      // Handle PDF files specially - use native browser viewer for perfect rendering
+      if (file.detectedFormat === 'pdf') {
+        try {
+          // Create a Blob URL for the PDF file
+          const blobUrl = URL.createObjectURL(file);
+
+          // Use an iframe to render the PDF natively
+          // This handles images, layout, fonts, and large files perfectly
+          preview = `
+            <div style="width: 100%; height: 100%; background-color: #333; overflow: hidden;">
+              <iframe 
+                src="${blobUrl}#toolbar=0&view=FitH" 
+                width="100%" 
+                height="100%" 
+                style="border: none;"
+                title="${file.name}"
+              >
+                <div style="display: flex; flex-direction: column; items: center; justify-content: center; height: 100%; color: white; text-align: center;">
+                  <p>Unable to display PDF directly.</p>
+                  <a href="${blobUrl}" download="${file.name}" style="color: white; text-decoration: underline;">Download to view</a>
+                </div>
+              </iframe>
+            </div>
+          `;
+        } catch (error) {
+          console.error('PDF preview creation failed', error);
+          preview = `<div style="text-align: center; padding: 40px;">
+            <p style="color: #888;">📄 PDF file detected</p>
+            <p><strong>${file.name}</strong></p>
+            <p>Unable to load native viewer.</p>
+          </div>`;
+        }
       }
-      
+      // Handle DOCX files
+      else if (file.detectedFormat === 'docx') {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const mammoth = await import('mammoth');
+          const result = await mammoth.convertToHtml({ arrayBuffer });
+          preview = result.value.substring(0, 5000);
+        } catch {
+          preview = `<div style="text-align: center; padding: 40px;">
+            <p style="color: #888;">📝 Word document detected</p>
+            <p><strong>${file.name}</strong></p>
+            <p style="color: #666;">Size: ${formatFileSize(file.size)}</p>
+          </div>`;
+        }
+      }
+      // Handle image files
+      else if (file.type.startsWith('image/')) {
+        const dataUrl = URL.createObjectURL(file);
+        preview = `<div style="text-align: center;">
+          <img src="${dataUrl}" alt="${file.name}" style="max-width: 100%; max-height: 400px; border-radius: 8px;" />
+          <p style="margin-top: 10px; color: #888;">${file.name}</p>
+        </div>`;
+      }
+      // Handle text-based files
+      else {
+        const content = await file.text();
+
+        switch (file.detectedFormat) {
+          case 'md':
+            const MarkdownIt = (await import('markdown-it')).default;
+            const md = new MarkdownIt();
+            preview = md.render(content.substring(0, 2000));
+            break;
+          case 'html':
+            preview = content.substring(0, 2000);
+            break;
+          case 'json':
+            try {
+              const jsonData = JSON.parse(content);
+              preview = `<pre style="background: #1a1a2e; padding: 15px; border-radius: 8px; overflow: auto;"><code style="color: #00ff88;">${JSON.stringify(jsonData, null, 2).substring(0, 2000)}</code></pre>`;
+            } catch {
+              preview = `<pre><code>${content.substring(0, 2000)}</code></pre>`;
+            }
+            break;
+          case 'csv':
+            preview = conversionService.csvToHTMLTable(content.substring(0, 5000));
+            break;
+          case 'xml':
+            preview = `<pre style="background: #1a1a2e; padding: 15px; border-radius: 8px; overflow: auto;"><code style="color: #ff6b6b;">${content.substring(0, 2000).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`;
+            break;
+          default:
+            preview = `<pre style="white-space: pre-wrap; font-family: monospace; line-height: 1.5;">${content.substring(0, 2000)}</pre>`;
+        }
+      }
+
       setPreviewContent(preview);
       setShowPreview(true);
     } catch (error) {
+      console.error('Preview error:', error);
       toast.error('Failed to generate preview');
     }
   }, []);
@@ -262,16 +328,16 @@ const ConverterPage: React.FC = () => {
       for (const file of selectedFiles) {
         try {
           console.log(`Converting file: ${file.name} (${file.detectedFormat} → ${outputFormat})`);
-          
+
           // Update progress
           setConversionProgress((completedFiles / totalFiles) * 100);
-          
+
           // Update toast with current file
           toast.loading(`Converting ${file.name}...`, { id: conversionToast });
-          
+
           // Read file content based on file type
           let content: string | ArrayBuffer;
-          
+
           if (file.detectedFormat === 'pdf' || file.detectedFormat === 'docx' || file.type.startsWith('image/')) {
             // Read as ArrayBuffer for binary files
             content = await file.arrayBuffer();
@@ -281,12 +347,12 @@ const ConverterPage: React.FC = () => {
             content = await file.text();
             console.log(`Read ${file.name} as text (${content.length} characters)`);
           }
-          
+
           // Validate conversion path
           if (!conversionService.isConversionSupported?.(file.detectedFormat!, outputFormat)) {
             throw new Error(`Conversion from ${file.detectedFormat} to ${outputFormat} is not supported`);
           }
-          
+
           // Perform conversion
           console.log(`Calling conversionService.convertFile for ${file.name}`);
           const result = await conversionService.convertFile(
@@ -296,20 +362,25 @@ const ConverterPage: React.FC = () => {
             conversionOptions
           );
 
-          console.log(`Conversion result for ${file.name}:`, { 
-            success: result.success, 
+          console.log(`Conversion result for ${file.name}:`, {
+            success: result.success,
             hasData: !!result.data,
             error: result.error,
-            metadata: result.metadata 
+            metadata: result.metadata
           });
 
           if (result.success && result.data) {
-            // Generate filename
+            // Generate filename - use .zip if it's a ZIP file with images
             const baseFilename = file.name.replace(/\.[^/.]+$/, '');
-            const extension = getFileExtension(outputFormat);
+            const isZip = result.metadata?.isZip || false;
+            const extension = isZip ? 'zip' : getFileExtension(outputFormat);
             const filename = `${baseFilename}.${extension}`;
 
-            console.log(`Adding converted file: ${filename} (${result.data.size} bytes)`);
+            if (isZip && result.metadata?.imageCount) {
+              console.log(`Adding converted ZIP file: ${filename} (${result.data.size} bytes) with ${result.metadata.imageCount} image(s)`);
+            } else {
+              console.log(`Adding converted file: ${filename} (${result.data.size} bytes)`);
+            }
 
             // Add to conversion context
             addConvertedFile({
@@ -358,16 +429,16 @@ const ConverterPage: React.FC = () => {
         toast.success(`🎉 Successfully converted ${successfulConversions} of ${totalFiles} files!`, {
           duration: 5000,
         });
-        
+
         console.log(`Conversion completed: ${successfulConversions}/${totalFiles} files successful`);
       } else {
         toast.error('No files were successfully converted. Please check the console for details.');
       }
 
-      // Clear selected files after successful conversion
-      if (successfulConversions === totalFiles) {
-        setSelectedFiles([]);
-      }
+      // Note: We intentionally keep files selected so the user can convert them again to a different format
+      // if (successfulConversions === totalFiles) {
+      //   setSelectedFiles([]);
+      // }
 
     } catch (error) {
       console.error('Batch conversion error:', error);
@@ -448,11 +519,11 @@ const ConverterPage: React.FC = () => {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-3">
             <motion.div
-              animate={{ 
+              animate={{
                 rotate: isConverting ? [0, 360] : 0,
                 scale: isConverting ? [1, 1.1, 1] : 1
               }}
-              transition={{ 
+              transition={{
                 rotate: { duration: 2, repeat: Infinity, ease: "linear" },
                 scale: { duration: 1, repeat: Infinity }
               }}
@@ -466,7 +537,7 @@ const ConverterPage: React.FC = () => {
               <p className="text-muted-foreground">Convert between multiple document formats with ease</p>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             <Badge variant="outline" className="hidden sm:flex">
               {conversionService.getSupportedFormats().length} formats supported
@@ -504,38 +575,36 @@ const ConverterPage: React.FC = () => {
                   ref={fileInputRef}
                   onChange={handleFileInputChange}
                   multiple
-                  accept=".txt,.md,.html,.csv,.json,.xml,.rtf,.pdf,.docx,.doc,.odt,.epub,.png,.jpg,.jpeg,.pptx,.ppt,.xlsx,.xls"
+                  accept=".csv,.pdf,.docx,.json"
                   style={{ display: 'none' }}
                 />
-                
-                <motion.div
+
+                <div
                   {...getRootProps()}
                   className={`
-                    relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-300
+                    relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-300 transform
                     ${isDragActive ? 'border-primary bg-primary/5 scale-105' : 'border-muted-foreground/25'}
                     ${isDragReject ? 'border-destructive bg-destructive/5' : ''}
-                    hover:border-primary hover:bg-primary/5
+                    hover:border-primary hover:bg-primary/5 hover:scale-[1.02] active:scale-[0.98]
                   `}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
                   onClick={handleManualFileSelect}
                 >
                   <input {...getInputProps()} style={{ display: 'none' }} />
-                  
+
                   <motion.div
                     animate={isDragActive ? { y: [-5, 5, -5] } : {}}
                     transition={{ duration: 1, repeat: Infinity }}
                   >
                     <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                   </motion.div>
-                  
+
                   <h3 className="text-lg font-semibold mb-2">
-                    {isDragActive ? 'Drop files here!' : 'Drag & drop files here'}
+                    {isDragActive ? 'Drop files here!' : t('dragAndDrop')}
                   </h3>
                   <p className="text-muted-foreground mb-4">
-                    or click to browse your computer
+                    {t('orClickToBrowse')}
                   </p>
-                  
+
                   {/* Browse Button */}
                   <motion.button
                     type="button"
@@ -548,21 +617,21 @@ const ConverterPage: React.FC = () => {
                     className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-300 mb-4"
                   >
                     <Upload className="h-4 w-4" />
-                    Browse Files
+                    {t('browseFiles')}
                   </motion.button>
-                  
+
                   <div className="flex flex-wrap justify-center gap-2 mb-4">
-                    {['TXT', 'MD', 'HTML', 'PDF', 'DOCX', 'CSV', 'JSON'].map((format) => (
+                    {['CSV', 'PDF', 'DOCX', 'JSON'].map((format) => (
                       <Badge key={format} variant="secondary" className="text-xs">
                         {format}
                       </Badge>
                     ))}
                   </div>
-                  
+
                   <p className="text-xs text-muted-foreground">
-                    Maximum file size: 50MB • Maximum files: 20
+                    {t('maximumFileSize')}: 50MB • {t('maximumFiles')}: 20
                   </p>
-                </motion.div>
+                </div>
               </CardContent>
             </Card>
 
@@ -584,10 +653,10 @@ const ConverterPage: React.FC = () => {
                         </CardTitle>
                         <Button variant="outline" size="sm" onClick={clearAllFiles}>
                           <Trash2 className="h-4 w-4 mr-2" />
-                      Clear All
-                    </Button>
+                          Clear All
+                        </Button>
                       </div>
-                </CardHeader>
+                    </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
                         {selectedFiles.map((file, index) => {
@@ -607,8 +676,8 @@ const ConverterPage: React.FC = () => {
                                   <p className="font-medium text-sm">{file.name}</p>
                                   <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                                     <span>{formatFileSize(file.size)}</span>
-                                    <Badge 
-                                      variant="outline" 
+                                    <Badge
+                                      variant="outline"
                                       className={`text-xs ${getFormatColor(file.detectedFormat!)}`}
                                     >
                                       {file.detectedFormat?.toUpperCase()}
@@ -622,7 +691,7 @@ const ConverterPage: React.FC = () => {
                                   </div>
                                 </div>
                               </div>
-                              
+
                               <div className="flex items-center space-x-2">
                                 <Button
                                   variant="ghost"
@@ -644,7 +713,7 @@ const ConverterPage: React.FC = () => {
                             </motion.div>
                           );
                         })}
-                            </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -676,9 +745,9 @@ const ConverterPage: React.FC = () => {
                             {Math.round(conversionProgress)}%
                           </span>
                         </div>
-                        
+
                         <Progress value={conversionProgress} className="h-2" />
-                        
+
                         <p className="text-sm text-muted-foreground text-center">
                           Please wait while we process your files
                         </p>
@@ -705,9 +774,9 @@ const ConverterPage: React.FC = () => {
                           <CheckCircle className="h-5 w-5" />
                           <span>Converted Files ({convertedFiles.length})</span>
                         </CardTitle>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => state.convertedFiles.forEach(file => downloadFile(file.blob, file.convertedName))}
                           className="text-green-700 border-green-300 hover:bg-green-100 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-900"
                         >
@@ -752,12 +821,12 @@ const ConverterPage: React.FC = () => {
                                     <span>•</span>
                                     <span>{formatFileSize(file.size)}</span>
                                     <span>•</span>
-                                    <Badge 
-                                      variant="outline" 
+                                    <Badge
+                                      variant="outline"
                                       className="text-xs border-green-300 text-green-700 dark:border-green-700 dark:text-green-300"
                                     >
                                       {file.originalFormat.toUpperCase()} → {file.convertedFormat.toUpperCase()}
-                          </Badge>
+                                    </Badge>
                                     {file.metadata && (
                                       <>
                                         <span>•</span>
@@ -767,20 +836,20 @@ const ConverterPage: React.FC = () => {
                                   </div>
                                 </div>
                               </div>
-                              
+
                               <div className="flex items-center space-x-2">
-                      <Button
+                                <Button
                                   variant="outline"
-                        size="sm"
+                                  size="sm"
                                   onClick={() => downloadFile(file.blob, file.convertedName)}
                                   className="h-8 text-green-700 border-green-300 hover:bg-green-100 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-900"
                                 >
                                   <Download className="h-4 w-4 mr-1" />
-                              Download
-                            </Button>
-                          <Button
-                        variant="ghost"
-                        size="sm"
+                                  Download
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => {
                                     // Copy download link to clipboard
                                     const url = URL.createObjectURL(file.blob);
@@ -796,7 +865,7 @@ const ConverterPage: React.FC = () => {
                           );
                         })}
                       </div>
-                      
+
                       {/* Conversion Summary */}
                       <div className="mt-4 p-3 bg-green-100/50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                         <div className="flex items-center justify-between text-sm">
@@ -819,9 +888,9 @@ const ConverterPage: React.FC = () => {
                             )}
                           </div>
                         </div>
-                  </div>
-                </CardContent>
-              </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -834,18 +903,25 @@ const ConverterPage: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Target className="h-5 w-5" />
-                  <span>Output Format</span>
+                  <span>{t('outputFormat')}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <Tabs defaultValue="document" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="document">Document</TabsTrigger>
-                    <TabsTrigger value="data">Data</TabsTrigger>
+                    <TabsTrigger value="document">{t('document')}</TabsTrigger>
+                    <TabsTrigger value="data">{t('data')}</TabsTrigger>
                   </TabsList>
-                  
+
                   <TabsContent value="document" className="space-y-3 mt-4">
                     {formatCategories.document.map((format) => {
+                      // Check if this format is supported for all selected files
+                      const isSupported = selectedFiles.every(file =>
+                        file.detectedFormat && conversionService.isConversionSupported(file.detectedFormat, format)
+                      );
+
+                      if (!isSupported && selectedFiles.length > 0) return null;
+
                       const FormatIcon = getFormatIcon(format);
                       const formatInfo = conversionService.getFormatInfo(format);
                       return (
@@ -862,7 +938,7 @@ const ConverterPage: React.FC = () => {
                             <FormatIcon className="h-4 w-4 mr-3" />
                             <div className="text-left">
                               <div className="font-medium">{formatInfo.name}</div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className={`text-xs ${outputFormat === format ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                                 {formatInfo.description}
                               </div>
                             </div>
@@ -871,9 +947,16 @@ const ConverterPage: React.FC = () => {
                       );
                     })}
                   </TabsContent>
-                  
+
                   <TabsContent value="data" className="space-y-3 mt-4">
                     {[...formatCategories.text, ...formatCategories.data, ...formatCategories.image].map((format) => {
+                      // Check if this format is supported for all selected files
+                      const isSupported = selectedFiles.every(file =>
+                        file.detectedFormat && conversionService.isConversionSupported(file.detectedFormat, format)
+                      );
+
+                      if (!isSupported && selectedFiles.length > 0) return null;
+
                       const FormatIcon = getFormatIcon(format);
                       const formatInfo = conversionService.getFormatInfo(format);
                       return (
@@ -890,10 +973,10 @@ const ConverterPage: React.FC = () => {
                             <FormatIcon className="h-4 w-4 mr-3" />
                             <div className="text-left">
                               <div className="font-medium">{formatInfo.name}</div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className={`text-xs ${outputFormat === format ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                                 {formatInfo.description}
                               </div>
-                  </div>
+                            </div>
                           </Button>
                         </motion.div>
                       );
@@ -917,17 +1000,17 @@ const ConverterPage: React.FC = () => {
                       <CardTitle className="flex items-center space-x-2">
                         <Wand2 className="h-5 w-5" />
                         <span>Advanced Options</span>
-                </CardTitle>
-              </CardHeader>
+                      </CardTitle>
+                    </CardHeader>
                     <CardContent className="space-y-4">
                       {/* Quality Settings */}
                       <div className="space-y-3">
                         <Label className="text-sm font-medium">Quality</Label>
                         <Select
                           value={conversionOptions.quality}
-                          onValueChange={(value) => setConversionOptions(prev => ({ 
-                            ...prev, 
-                            quality: value as 'low' | 'medium' | 'high' 
+                          onValueChange={(value) => setConversionOptions(prev => ({
+                            ...prev,
+                            quality: value as 'low' | 'medium' | 'high'
                           }))}
                         >
                           <SelectTrigger>
@@ -947,9 +1030,9 @@ const ConverterPage: React.FC = () => {
                         <div className="px-3">
                           <Slider
                             value={[conversionOptions.fontSize || 16]}
-                            onValueChange={([value]) => setConversionOptions(prev => ({ 
-                              ...prev, 
-                              fontSize: value 
+                            onValueChange={([value]) => setConversionOptions(prev => ({
+                              ...prev,
+                              fontSize: value
                             }))}
                             max={24}
                             min={8}
@@ -973,9 +1056,9 @@ const ConverterPage: React.FC = () => {
                           <Switch
                             id="preserve-formatting"
                             checked={conversionOptions.preserveFormatting}
-                            onCheckedChange={(checked) => setConversionOptions(prev => ({ 
-                              ...prev, 
-                              preserveFormatting: checked 
+                            onCheckedChange={(checked) => setConversionOptions(prev => ({
+                              ...prev,
+                              preserveFormatting: checked
                             }))}
                           />
                         </div>
@@ -987,9 +1070,9 @@ const ConverterPage: React.FC = () => {
                           <Switch
                             id="include-metadata"
                             checked={conversionOptions.includeMetadata}
-                            onCheckedChange={(checked) => setConversionOptions(prev => ({ 
-                              ...prev, 
-                              includeMetadata: checked 
+                            onCheckedChange={(checked) => setConversionOptions(prev => ({
+                              ...prev,
+                              includeMetadata: checked
                             }))}
                           />
                         </div>
@@ -1001,15 +1084,15 @@ const ConverterPage: React.FC = () => {
                           <Switch
                             id="compression"
                             checked={conversionOptions.compression}
-                            onCheckedChange={(checked) => setConversionOptions(prev => ({ 
-                              ...prev, 
-                              compression: checked 
+                            onCheckedChange={(checked) => setConversionOptions(prev => ({
+                              ...prev,
+                              compression: checked
                             }))}
                           />
                         </div>
                       </div>
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1048,22 +1131,22 @@ const ConverterPage: React.FC = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2 text-base">
                     <TrendingUp className="h-4 w-4" />
-                    <span>Quick Stats</span>
+                    <span>{t('quickStats')}</span>
                   </CardTitle>
-              </CardHeader>
+                </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total files:</span>
+                    <span className="text-muted-foreground">{t('totalFiles')}:</span>
                     <span className="font-medium">{selectedFiles.length}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total size:</span>
+                    <span className="text-muted-foreground">{t('totalSize')}:</span>
                     <span className="font-medium">
                       {formatFileSize(selectedFiles.reduce((acc, file) => acc + file.size, 0))}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Output format:</span>
+                    <span className="text-muted-foreground">{t('outputFormat')}:</span>
                     <Badge variant="outline" className="text-xs">
                       {outputFormat.toUpperCase()}
                     </Badge>
@@ -1118,9 +1201,9 @@ const ConverterPage: React.FC = () => {
                       <Trash2 className="h-4 w-4 mr-2" />
                       Clear All
                     </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
@@ -1139,17 +1222,17 @@ const ConverterPage: React.FC = () => {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-background rounded-lg shadow-xl max-w-4xl max-h-[80vh] overflow-hidden"
+                className="bg-background rounded-lg shadow-xl w-[90vw] h-[90vh] max-w-7xl flex flex-col overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between p-4 border-b">
+                <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
                   <h3 className="text-lg font-semibold">File Preview</h3>
                   <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)}>
                     ✕
                   </Button>
                 </div>
-                <div 
-                  className="p-4 overflow-auto max-h-[60vh]"
+                <div
+                  className="p-0 flex-1 overflow-auto bg-gray-100 dark:bg-gray-900"
                   dangerouslySetInnerHTML={{ __html: previewContent }}
                 />
               </motion.div>
