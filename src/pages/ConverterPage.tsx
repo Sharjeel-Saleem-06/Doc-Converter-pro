@@ -16,6 +16,8 @@ import { useConversion } from '@/contexts/ConversionContext';
 import { useTheme, useTranslation } from '@/contexts/ThemeContext';
 import { conversionService, SupportedFormat, ConversionOptions, downloadFile, getFileExtension, formatFileSize } from '@/lib/conversionService';
 import { toast } from 'react-hot-toast';
+import { useUser } from '@clerk/clerk-react';
+import { addConversionHistory } from '@/lib/supabase';
 import {
   Upload,
   FileText,
@@ -57,6 +59,7 @@ const ConverterPage: React.FC = () => {
   const { state, addFiles, removeFile, updateFileStatus, addConvertedFile, setProcessing, clearConvertedFiles } = useConversion();
   const { settings } = useTheme();
   const { t } = useTranslation();
+  const { user } = useUser(); // Get current user for Supabase history
 
   const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
   const [outputFormat, setOutputFormat] = useState<SupportedFormat>('pdf');
@@ -401,6 +404,23 @@ const ConverterPage: React.FC = () => {
               downloadFile(result.data, filename);
             }
 
+            // Save to Supabase history
+            if (user?.id) {
+              try {
+                await addConversionHistory(user.id, {
+                  fileName: file.name,
+                  fileSize: file.size,
+                  sourceFormat: file.detectedFormat!,
+                  targetFormat: outputFormat,
+                  status: 'completed'
+                });
+                console.log(`✅ Saved conversion history to Supabase for ${file.name}`);
+              } catch (error) {
+                console.error('Failed to save history to Supabase:', error);
+                // Don't block the conversion flow if history save fails
+              }
+            }
+
             successfulConversions++;
             toast.success(`✅ ${file.name} converted successfully!`, {
               duration: 4000,
@@ -532,15 +552,15 @@ const ConverterPage: React.FC = () => {
             </motion.div>
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Document Converter
+                {t('documentConverter')}
               </h1>
-              <p className="text-muted-foreground">Convert between multiple document formats with ease</p>
+              <p className="text-muted-foreground">{t('convertBetweenFormats')}</p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
             <Badge variant="outline" className="hidden sm:flex">
-              {conversionService.getSupportedFormats().length} formats supported
+              {conversionService.getSupportedFormats().length} {t('formatsSupported')}
             </Badge>
             <Button
               variant="outline"
@@ -562,10 +582,10 @@ const ConverterPage: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Upload className="h-5 w-5" />
-                  <span>Upload Files</span>
+                  <span>{t('uploadFiles')}</span>
                 </CardTitle>
                 <CardDescription>
-                  Drag and drop files or click to browse. Supports multiple formats.
+                  {t('dragDropOrClick')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -649,11 +669,11 @@ const ConverterPage: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center space-x-2">
                           <FileText className="h-5 w-5" />
-                          <span>Selected Files ({selectedFiles.length})</span>
+                          <span>{t('selectedFiles')} ({selectedFiles.length})</span>
                         </CardTitle>
                         <Button variant="outline" size="sm" onClick={clearAllFiles}>
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Clear All
+                          {t('clearAll')}
                         </Button>
                       </div>
                     </CardHeader>
@@ -739,7 +759,7 @@ const ConverterPage: React.FC = () => {
                             >
                               <RefreshCw className="h-5 w-5 text-primary" />
                             </motion.div>
-                            <span className="font-medium">Converting files...</span>
+                            <span className="font-medium">{t('convertingFiles')}</span>
                           </div>
                           <span className="text-sm text-muted-foreground">
                             {Math.round(conversionProgress)}%
@@ -749,7 +769,7 @@ const ConverterPage: React.FC = () => {
                         <Progress value={conversionProgress} className="h-2" />
 
                         <p className="text-sm text-muted-foreground text-center">
-                          Please wait while we process your files
+                          {t('pleaseWait')}
                         </p>
                       </div>
                     </CardContent>
@@ -772,7 +792,7 @@ const ConverterPage: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center space-x-2 text-green-700 dark:text-green-300">
                           <CheckCircle className="h-5 w-5" />
-                          <span>Converted Files ({convertedFiles.length})</span>
+                          <span>{t('convertedFiles')} ({convertedFiles.length})</span>
                         </CardTitle>
                         <Button
                           variant="outline"
@@ -781,7 +801,7 @@ const ConverterPage: React.FC = () => {
                           className="text-green-700 border-green-300 hover:bg-green-100 dark:text-green-300 dark:border-green-700 dark:hover:bg-green-900"
                         >
                           <Download className="h-4 w-4 mr-2" />
-                          Download All
+                          {t('downloadAll')}
                         </Button>
                       </div>
                       <CardDescription className="text-green-600 dark:text-green-400">
@@ -817,7 +837,7 @@ const ConverterPage: React.FC = () => {
                                     {file.convertedName}
                                   </p>
                                   <div className="flex items-center space-x-3 text-xs text-green-600 dark:text-green-400">
-                                    <span>From: {file.originalName}</span>
+                                    <span>{t('from')}: {file.originalName}</span>
                                     <span>•</span>
                                     <span>{formatFileSize(file.size)}</span>
                                     <span>•</span>
@@ -870,7 +890,7 @@ const ConverterPage: React.FC = () => {
                       <div className="mt-4 p-3 bg-green-100/50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-green-700 dark:text-green-300 font-medium">
-                            Conversion Summary
+                            {t('conversionSummary')}
                           </span>
                           <div className="flex items-center space-x-4 text-green-600 dark:text-green-400">
                             <span>Total: {convertedFiles.length} files</span>

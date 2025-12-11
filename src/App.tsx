@@ -21,6 +21,8 @@ import ProfilePage from '@/pages/ProfilePage';
 import HowItWorksPage from '@/pages/HowItWorksPage';
 import SignInPage from '@/pages/SignInPage';
 import SignUpPage from '@/pages/SignUpPage';
+import ContactPage from '@/pages/ContactPage';
+import PrivacySafetyPage from '@/pages/PrivacySafetyPage';
 import NotFound from '@/pages/NotFound';
 
 // Context Providers
@@ -148,6 +150,12 @@ function AppRoutes() {
           } />
           <Route path="/how-it-works" element={
             <ProtectedRoute><HowItWorksPage /></ProtectedRoute>
+          } />
+          <Route path="/contact" element={
+            <ProtectedRoute><ContactPage /></ProtectedRoute>
+          } />
+          <Route path="/privacy-safety" element={
+            <ProtectedRoute><PrivacySafetyPage /></ProtectedRoute>
           } />
 
           <Route path="*" element={<NotFound />} />

@@ -1,14 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Upload, 
-  Settings, 
-  Zap, 
-  Download, 
-  FileText, 
-  Image, 
-  FileSpreadsheet, 
+import {
+  Upload,
+  Settings,
+  Zap,
+  Download,
+  FileText,
+  Image,
+  FileSpreadsheet,
   Presentation,
   CheckCircle,
   ArrowRight,
@@ -140,7 +140,7 @@ const HowItWorksPage = () => {
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 hero-gradient"></div>
         <div className="absolute inset-0 grid-pattern opacity-30"></div>
-        
+
         <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -157,15 +157,15 @@ const HowItWorksPage = () => {
               <Sparkles className="w-4 h-4" />
               How DocConverter Pro Works
             </motion.div>
-            
+
             <h1 className="text-5xl md:text-7xl font-bold mb-6">
               <span className="gradient-text">Simple.</span>{" "}
               <span className="gradient-text">Powerful.</span>{" "}
               <span className="gradient-text">Professional.</span>
             </h1>
-            
+
             <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-              Transform your documents with our advanced conversion engine. 
+              Transform your documents with our advanced conversion engine.
               Four simple steps to convert any document format with professional results.
             </p>
           </motion.div>
@@ -186,9 +186,8 @@ const HowItWorksPage = () => {
               <motion.div
                 key={step.id}
                 variants={itemVariants}
-                className={`flex flex-col ${
-                  index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'
-                } items-center gap-12`}
+                className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'
+                  } items-center gap-12`}
               >
                 {/* Content */}
                 <div className="flex-1 space-y-6">
@@ -204,11 +203,11 @@ const HowItWorksPage = () => {
                       <h3 className="text-3xl font-bold">{step.title}</h3>
                     </div>
                   </div>
-                  
+
                   <p className="text-lg text-muted-foreground leading-relaxed">
                     {step.description}
                   </p>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {step.details.map((detail, idx) => (
                       <motion.div
@@ -232,24 +231,15 @@ const HowItWorksPage = () => {
                     className="relative"
                   >
                     <div className={`w-full h-80 rounded-3xl bg-gradient-to-r ${step.color} p-1 shadow-2xl`}>
-                      <div className="w-full h-full bg-background rounded-3xl flex items-center justify-center">
-                        <motion.div
-                          animate={{ 
-                            scale: [1, 1.1, 1],
-                            rotate: [0, 5, -5, 0]
-                          }}
-                          transition={{ 
-                            duration: 4,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                          }}
-                          className="text-6xl opacity-20"
-                        >
-                          <step.icon />
-                        </motion.div>
+                      <div className="w-full h-full bg-background rounded-3xl overflow-hidden p-4">
+                        <img
+                          src={`/images/how-it-works/step${step.id}-${step.id === 1 ? 'upload' : step.id === 2 ? 'format' : step.id === 3 ? 'conversion' : 'download'}.png`}
+                          alt={step.title}
+                          className="w-full h-full object-contain rounded-2xl"
+                        />
                       </div>
                     </div>
-                    
+
                     {index < steps.length - 1 && (
                       <motion.div
                         initial={{ opacity: 0 }}

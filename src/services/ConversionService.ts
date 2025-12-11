@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
+import * as jsonConverter from './jsonConversionService';
 
 export interface ConversionFile {
   id: string;
@@ -36,7 +37,7 @@ export interface ConversionProgress {
   error?: string;
 }
 
-export type SupportedFormat = 
+export type SupportedFormat =
   | 'pdf' | 'docx' | 'doc' | 'txt' | 'md' | 'html' | 'rtf' | 'odt'
   | 'xlsx' | 'xls' | 'csv' | 'ods' | 'pptx' | 'ppt' | 'odp'
   | 'json' | 'xml' | 'epub' | 'png' | 'jpg' | 'jpeg' | 'gif' | 'bmp' | 'webp';
@@ -105,14 +106,14 @@ class ConversionService {
   // Detect file format from file
   detectFormat(file: File): SupportedFormat | null {
     const extension = this.getFileExtension(file.name);
-    
+
     // Check if extension is supported
     for (const category of Object.values(SUPPORTED_FORMATS)) {
       if (category.includes(extension as SupportedFormat)) {
         return extension as SupportedFormat;
       }
     }
-    
+
     // Fallback to MIME type detection
     const mimeTypeMap: Record<string, SupportedFormat> = {
       'application/pdf': 'pdf',
@@ -163,17 +164,17 @@ class ConversionService {
     };
 
     const conversionOptions = { ...defaultOptions, ...options };
-    
+
     try {
       this.emitProgress(file.id, 0, 'Starting conversion...');
-      
+
       const sourceFormat = this.detectFormat(file.file);
       if (!sourceFormat) {
         throw new Error('Unsupported file format');
       }
 
       this.emitProgress(file.id, 20, 'Reading file...');
-      
+
       let convertedData: Blob;
       let convertedName: string;
 
@@ -196,6 +197,11 @@ class ConversionService {
         convertedName = result.name;
       } else if (sourceFormat !== 'pdf' && targetFormat === 'pdf') {
         const result = await this.convertToPDF(file.file, sourceFormat, conversionOptions);
+        convertedData = result.data;
+        convertedName = result.name;
+      } else if (sourceFormat === 'json' && ['pdf', 'txt', 'csv', 'html', 'xml'].includes(targetFormat)) {
+        // Use advanced JSON converter
+        const result = await this.convertFromJSON(file.file, targetFormat, conversionOptions);
         convertedData = result.data;
         convertedName = result.name;
       } else if (this.isImageFormat(sourceFormat) && this.isImageFormat(targetFormat)) {
@@ -223,7 +229,7 @@ class ConversionService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       this.emitProgress(file.id, 0, 'Error', errorMessage);
-      
+
       return {
         ...file,
         status: 'error',
@@ -240,12 +246,12 @@ class ConversionService {
     options: Partial<ConversionOptions> = {}
   ): Promise<ConversionFile[]> {
     const results: ConversionFile[] = [];
-    
+
     for (const file of files) {
       const result = await this.convertFile(file, targetFormat, options);
       results.push(result);
     }
-    
+
     return results;
   }
 
@@ -254,20 +260,20 @@ class ConversionService {
     if (!file.convertedData || !file.convertedName) {
       throw new Error('No converted data available');
     }
-    
+
     saveAs(file.convertedData, file.convertedName);
   }
 
   // Download multiple files as ZIP
   async downloadAsZip(files: ConversionFile[], zipName: string = 'converted_files.zip') {
     const zip = new JSZip();
-    
+
     for (const file of files) {
       if (file.convertedData && file.convertedName) {
         zip.file(file.convertedName, file.convertedData);
       }
     }
-    
+
     const zipBlob = await zip.generateAsync({ type: 'blob' });
     saveAs(zipBlob, zipName);
   }
@@ -298,7 +304,7 @@ class ConversionService {
   ): Promise<{ data: Blob; name: string }> {
     const text = await file.text();
     let convertedText = text;
-    
+
     // Apply format-specific conversions
     if (sourceFormat === 'md' && targetFormat === 'html') {
       convertedText = this.markdownToHtml(text);
@@ -309,10 +315,10 @@ class ConversionService {
     } else if (sourceFormat === 'xml' && targetFormat === 'json') {
       convertedText = this.xmlToJson(text);
     }
-    
+
     const blob = new Blob([convertedText], { type: this.getMimeType(targetFormat) });
     const name = file.name.replace(/\.[^/.]+$/, `.${targetFormat}`);
-    
+
     return { data: blob, name };
   }
 
@@ -325,10 +331,10 @@ class ConversionService {
   ): Promise<{ data: Blob; name: string }> {
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-    
+
     let outputData: ArrayBuffer;
     let mimeType: string;
-    
+
     switch (targetFormat) {
       case 'xlsx':
         outputData = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
@@ -350,10 +356,10 @@ class ConversionService {
       default:
         throw new Error(`Unsupported target format: ${targetFormat}`);
     }
-    
+
     const blob = new Blob([outputData], { type: mimeType });
     const name = file.name.replace(/\.[^/.]+$/, `.${targetFormat}`);
-    
+
     return { data: blob, name };
   }
 
@@ -367,13 +373,13 @@ class ConversionService {
     // For now, we'll create a basic conversion
     // In a real implementation, you'd use libraries like officegen or similar
     const arrayBuffer = await file.arrayBuffer();
-    
+
     // Create a basic presentation structure
     const presentationData = this.createBasicPresentation(file.name, targetFormat);
-    
+
     const blob = new Blob([presentationData], { type: this.getMimeType(targetFormat) });
     const name = file.name.replace(/\.[^/.]+$/, `.${targetFormat}`);
-    
+
     return { data: blob, name };
   }
 
@@ -398,7 +404,7 @@ class ConversionService {
       const workbook = XLSX.read(arrayBuffer, { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const csvData = XLSX.utils.sheet_to_csv(worksheet);
-      
+
       const lines = pdf.splitTextToSize(csvData, 180);
       pdf.text(lines, options.margin, options.margin);
     } else if (this.isImageFormat(sourceFormat)) {
@@ -408,7 +414,7 @@ class ConversionService {
 
     const pdfBlob = pdf.output('blob');
     const name = file.name.replace(/\.[^/.]+$/, '.pdf');
-    
+
     return { data: pdfBlob, name };
   }
 
@@ -421,10 +427,10 @@ class ConversionService {
     // This is a simplified implementation
     // In a real app, you'd use PDF.js or similar for proper text extraction
     const text = `Extracted content from ${file.name}\n\nThis is a placeholder for PDF text extraction.\nIn a production environment, you would use proper PDF parsing libraries.`;
-    
+
     let convertedData: string;
     let mimeType: string;
-    
+
     switch (targetFormat) {
       case 'txt':
         convertedData = text;
@@ -442,11 +448,50 @@ class ConversionService {
         convertedData = text;
         mimeType = 'text/plain';
     }
-    
+
     const blob = new Blob([convertedData], { type: mimeType });
     const name = file.name.replace(/\.[^/.]+$/, `.${targetFormat}`);
-    
+
     return { data: blob, name };
+  }
+
+
+  // Convert from JSON using advanced converter
+  private async convertFromJSON(
+    file: File,
+    targetFormat: SupportedFormat,
+    options: ConversionOptions
+  ): Promise<{ data: Blob; name: string }> {
+    try {
+      const jsonContent = await file.text();
+      const fileName = file.name.replace(/\.[^/.]+$/, '');
+      let convertedData: Blob;
+
+      switch (targetFormat) {
+        case 'pdf':
+          convertedData = await jsonConverter.jsonToPDF(jsonContent, file.name);
+          break;
+        case 'txt':
+          convertedData = await jsonConverter.jsonToText(jsonContent, file.name);
+          break;
+        case 'csv':
+          convertedData = await jsonConverter.jsonToCSV(jsonContent);
+          break;
+        case 'html':
+          convertedData = await jsonConverter.jsonToHTML(jsonContent, file.name);
+          break;
+        case 'xml':
+          convertedData = await jsonConverter.jsonToXML(jsonContent);
+          break;
+        default:
+          throw new Error(`Unsupported JSON to ${targetFormat} conversion`);
+      }
+
+      const name = `${fileName}.${targetFormat}`;
+      return { data: convertedData, name };
+    } catch (error) {
+      throw new Error(`JSON conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   // Image format conversions
@@ -460,14 +505,14 @@ class ConversionService {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
-      
+
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
-        
+
         if (ctx) {
           ctx.drawImage(img, 0, 0);
-          
+
           canvas.toBlob((blob) => {
             if (blob) {
               const name = file.name.replace(/\.[^/.]+$/, `.${targetFormat}`);
@@ -480,7 +525,7 @@ class ConversionService {
           reject(new Error('Failed to get canvas context'));
         }
       };
-      
+
       img.onerror = () => reject(new Error('Failed to load image'));
       img.src = URL.createObjectURL(file);
     });
@@ -497,7 +542,7 @@ class ConversionService {
     const text = await file.text();
     const blob = new Blob([text], { type: this.getMimeType(targetFormat) });
     const name = file.name.replace(/\.[^/.]+$/, `.${targetFormat}`);
-    
+
     return { data: blob, name };
   }
 
@@ -529,7 +574,7 @@ class ConversionService {
 
   private objectToXml(obj: any, rootName: string): string {
     let xml = `<${rootName}>`;
-    
+
     for (const key in obj) {
       if (typeof obj[key] === 'object') {
         xml += this.objectToXml(obj[key], key);
@@ -537,7 +582,7 @@ class ConversionService {
         xml += `<${key}>${obj[key]}</${key}>`;
       }
     }
-    
+
     xml += `</${rootName}>`;
     return xml;
   }
@@ -556,15 +601,15 @@ class ConversionService {
 
   private xmlToObject(element: Element): any {
     const obj: any = {};
-    
+
     if (element.children.length === 0) {
       return element.textContent;
     }
-    
+
     for (const child of element.children) {
       const key = child.tagName;
       const value = this.xmlToObject(child);
-      
+
       if (obj[key]) {
         if (!Array.isArray(obj[key])) {
           obj[key] = [obj[key]];
@@ -574,7 +619,7 @@ class ConversionService {
         obj[key] = value;
       }
     }
-    
+
     return obj;
   }
 
@@ -620,7 +665,7 @@ class ConversionService {
       'bmp': 'image/bmp',
       'webp': 'image/webp'
     };
-    
+
     return mimeTypes[format] || 'application/octet-stream';
   }
 
@@ -643,7 +688,7 @@ class ConversionService {
       'pptx': ['pdf', 'ppt', 'odp', 'html'],
       'ppt': ['pdf', 'pptx', 'odp', 'html'],
       'odp': ['pdf', 'pptx', 'ppt', 'html'],
-      'json': ['xml', 'txt', 'csv'],
+      'json': ['xml', 'txt', 'csv', 'pdf', 'html'],
       'xml': ['json', 'txt', 'html'],
       'epub': ['pdf', 'txt', 'html'],
       'png': ['jpg', 'jpeg', 'gif', 'bmp', 'webp', 'pdf'],
@@ -653,7 +698,7 @@ class ConversionService {
       'bmp': ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf'],
       'webp': ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'pdf']
     };
-    
+
     return conversionMatrix[inputFormat] || [];
   }
 
@@ -666,11 +711,11 @@ class ConversionService {
   // Get file size in human readable format
   formatFileSize(bytes: number): string {
     if (bytes === 0) return '0 Bytes';
-    
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
+
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
@@ -682,7 +727,7 @@ class ConversionService {
       this.detectFormat(file.file) || 'txt',
       targetFormat
     );
-    
+
     return Math.max(baseTime, baseTime * sizeMultiplier * complexityMultiplier);
   }
 
@@ -691,7 +736,7 @@ class ConversionService {
     const complexFormats = ['pdf', 'docx', 'pptx', 'xlsx'];
     const inputComplex = complexFormats.includes(inputFormat);
     const outputComplex = complexFormats.includes(outputFormat);
-    
+
     if (inputComplex && outputComplex) return 3;
     if (inputComplex || outputComplex) return 2;
     return 1;

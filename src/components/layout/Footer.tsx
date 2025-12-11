@@ -3,10 +3,8 @@ import { motion } from 'framer-motion';
 import {
   FileText,
   Github,
-  Twitter,
   Linkedin,
   Shield,
-  HelpCircle,
   Mail,
   Zap,
   Users,
@@ -37,15 +35,13 @@ const Footer = () => {
   ];
 
   const supportLinks = [
-    { name: 'Help Center', href: '#', icon: HelpCircle },
-    { name: 'Contact Us', href: 'mailto:support@docconverter.pro', icon: Mail },
-    { name: 'Privacy Policy', href: '#', icon: Shield },
+    { name: 'Contact Us', href: '/contact', icon: Mail },
+    { name: 'Privacy & Safety', href: '/privacy-safety', icon: Shield },
   ];
 
   const socialLinks = [
-    { name: 'GitHub', href: '#', icon: Github },
-    { name: 'Twitter', href: '#', icon: Twitter },
-    { name: 'LinkedIn', href: '#', icon: Linkedin },
+    { name: 'GitHub', href: 'https://github.com/Sharjeel-Saleem-06', icon: Github },
+    { name: 'LinkedIn', href: 'https://www.linkedin.com/in/msharjeelsaleem/', icon: Linkedin },
   ];
 
   const stats = [
@@ -204,13 +200,13 @@ const Footer = () => {
                 const Icon = link.icon;
                 return (
                   <motion.li key={link.name} whileHover={{ x: 4 }}>
-                    <a
-                      href={link.href}
+                    <Link
+                      to={link.href}
                       className="flex items-center gap-3 text-muted-foreground hover:text-primary transition-colors text-sm group"
                     >
                       <Icon className="h-4 w-4 group-hover:text-primary transition-colors" />
                       {link.name}
-                    </a>
+                    </Link>
                   </motion.li>
                 );
               })}
