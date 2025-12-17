@@ -243,4 +243,4 @@ This project is licensed under the MIT License.
 
 ---
 
-Made with ❤️ by Muhammad Sharjeel
+Made by Muhammad Sharjeel
