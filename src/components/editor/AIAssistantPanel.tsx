@@ -235,15 +235,16 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 ref={scrollContainerRef}
                 style={{ 
                     height: 'calc(100% - 120px)', 
-                    overflowY: 'auto', 
+                    overflowY: 'scroll', // Changed from 'auto' to 'scroll' to always show scrollbar
                     overflowX: 'hidden',
                     WebkitOverflowScrolling: 'touch',
-                    position: 'relative'
+                    position: 'relative',
+                    backgroundColor: '#ffffff'
                 }}
             >
                 {/* ACTIONS TAB - MORE OPTIONS */}
                 {activeTab === 'actions' && (
-                    <div style={{ padding: '12px', paddingBottom: '60px' }}> {/* Added extra bottom padding */}
+                    <div style={{ padding: '12px', paddingBottom: '80px', minHeight: '100%' }}> {/* Increased bottom padding and added minHeight */}
                         {/* Selection Status */}
                         <div style={{ padding: '8px', backgroundColor: selectedText ? '#dcfce7' : '#fef3c7', borderRadius: '8px', fontSize: '11px', marginBottom: '12px' }}>
                             {selectedText ? (
@@ -367,7 +368,16 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                         )}
 
                         {result && !isProcessing && (
-                            <div style={{ padding: '12px', backgroundColor: '#faf5ff', borderRadius: '8px', border: '1px solid #e9d5ff', marginTop: '12px' }}>
+                            <div style={{ 
+                                padding: '12px', 
+                                backgroundColor: '#faf5ff', 
+                                borderRadius: '8px', 
+                                border: '1px solid #e9d5ff', 
+                                marginTop: '12px',
+                                marginBottom: '20px', // Added margin bottom
+                                boxSizing: 'border-box',
+                                width: '100%'
+                            }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                                     <span style={{ fontSize: '11px', fontWeight: '600', color: '#a855f7' }}>Result</span>
                                     <div style={{ display: 'flex', gap: '4px' }}>
@@ -384,8 +394,15 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                         )}
                                     </div>
                                 </div>
-                                <div style={{ maxHeight: '200px', overflowY: 'auto', backgroundColor: 'white', borderRadius: '4px', padding: '8px' }}>
-                                    <p style={{ fontSize: '11px', margin: 0, whiteSpace: 'pre-wrap' }}>{result}</p>
+                                <div style={{ 
+                                    maxHeight: '200px', 
+                                    overflowY: 'auto', 
+                                    backgroundColor: 'white', 
+                                    borderRadius: '4px', 
+                                    padding: '8px',
+                                    boxSizing: 'border-box'
+                                }}>
+                                    <p style={{ fontSize: '11px', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{result}</p>
                                 </div>
                             </div>
                         )}
@@ -453,7 +470,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                 {/* TOOLS, CREATE, ANALYZE TABS - keeping same structure but with padding-bottom */}
                 {activeTab === 'tools' && (
-                    <div style={{ padding: '12px', paddingBottom: '60px' }}>
+                    <div style={{ padding: '12px', paddingBottom: '80px', minHeight: '100%' }}>
                         <h4 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>AI Tools</h4>
                         <div style={{ marginBottom: '16px' }}>
                             {[
@@ -475,7 +492,15 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                         </div>
                         {isProcessing && <div style={{ textAlign: 'center', padding: '20px' }}><Loader2 style={{ width: '20px', height: '20px', animation: 'spin 1s linear infinite', color: '#a855f7' }} /></div>}
                         {result && !isProcessing && (
-                            <div style={{ padding: '12px', backgroundColor: '#faf5ff', borderRadius: '8px', marginTop: '12px' }}>
+                            <div style={{ 
+                                padding: '12px', 
+                                backgroundColor: '#faf5ff', 
+                                borderRadius: '8px', 
+                                marginTop: '12px',
+                                marginBottom: '20px',
+                                boxSizing: 'border-box',
+                                width: '100%'
+                            }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                                     <span style={{ fontSize: '11px', fontWeight: '600' }}>Result</span>
                                     <div style={{ display: 'flex', gap: '4px' }}>
@@ -487,8 +512,15 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                         </Button>
                                     </div>
                                 </div>
-                                <div style={{ maxHeight: '200px', overflowY: 'auto', backgroundColor: 'white', borderRadius: '4px', padding: '8px' }}>
-                                    <p style={{ fontSize: '11px', margin: 0, whiteSpace: 'pre-wrap' }}>{result}</p>
+                                <div style={{ 
+                                    maxHeight: '200px', 
+                                    overflowY: 'auto', 
+                                    backgroundColor: 'white', 
+                                    borderRadius: '4px', 
+                                    padding: '8px',
+                                    boxSizing: 'border-box'
+                                }}>
+                                    <p style={{ fontSize: '11px', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{result}</p>
                                 </div>
                             </div>
                         )}
@@ -496,7 +528,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 )}
 
                 {activeTab === 'create' && (
-                    <div style={{ padding: '12px', paddingBottom: '60px' }}>
+                    <div style={{ padding: '12px', paddingBottom: '80px', minHeight: '100%' }}>
                         {!selectedTemplate ? (
                             <div>
                                 {Object.entries(templatesByCategory).map(([category, templates]) => (
@@ -565,9 +597,24 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                     Generate
                                 </Button>
                                 {result && (
-                                    <div style={{ padding: '12px', backgroundColor: '#faf5ff', borderRadius: '8px', marginTop: '12px' }}>
-                                        <div style={{ maxHeight: '200px', overflowY: 'auto', backgroundColor: 'white', borderRadius: '4px', padding: '8px' }}>
-                                            <p style={{ fontSize: '11px', margin: 0, whiteSpace: 'pre-wrap' }}>{result}</p>
+                                    <div style={{ 
+                                        padding: '12px', 
+                                        backgroundColor: '#faf5ff', 
+                                        borderRadius: '8px', 
+                                        marginTop: '12px',
+                                        marginBottom: '20px',
+                                        boxSizing: 'border-box',
+                                        width: '100%'
+                                    }}>
+                                        <div style={{ 
+                                            maxHeight: '200px', 
+                                            overflowY: 'auto', 
+                                            backgroundColor: 'white', 
+                                            borderRadius: '4px', 
+                                            padding: '8px',
+                                            boxSizing: 'border-box'
+                                        }}>
+                                            <p style={{ fontSize: '11px', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{result}</p>
                                         </div>
                                     </div>
                                 )}
@@ -577,7 +624,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 )}
 
                 {activeTab === 'analyze' && (
-                    <div style={{ padding: '12px', paddingBottom: '60px' }}>
+                    <div style={{ padding: '12px', paddingBottom: '80px', minHeight: '100%' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
                             {[
                                 { label: 'Words', value: wordCount, icon: Type },
