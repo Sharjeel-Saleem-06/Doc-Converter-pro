@@ -170,7 +170,7 @@ const BatchProcessorPage: React.FC = () => {
     accept: {
       'text/*': ['.txt', '.md', '.html', '.csv', '.json', '.xml', '.rtf'],
       'application/*': ['.pdf', '.docx', '.doc', '.odt', '.epub'],
-      'image/*': ['.png', '.jpg', '.jpeg']
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'] // Added all supported image formats
     },
     maxSize: 50 * 1024 * 1024,
     maxFiles: 50,
@@ -659,7 +659,7 @@ const BatchProcessorPage: React.FC = () => {
                   ref={fileInputRef}
                   onChange={handleFileInputChange}
                   multiple
-                  accept=".csv,.pdf,.docx,.json,.txt,.md,.html,.xml"
+                  accept=".txt,.md,.html,.csv,.json,.xml,.rtf,.pdf,.docx,.doc,.odt,.epub,.png,.jpg,.jpeg,.gif,.bmp,.webp"
                   style={{ display: 'none' }}
                 />
 
