@@ -16,10 +16,10 @@ const SignUpPage: React.FC = () => {
 
     const benefits = [
         'Unlimited file conversions',
-        'Access to all 15+ formats',
-        'Cloud storage & sync',
+        'Access to all 26+ formats',
+        'AI-powered document editor',
         'Conversion history',
-        'Priority support',
+        '100% private - files never leave your browser',
     ];
 
     return (
@@ -67,7 +67,14 @@ const SignUpPage: React.FC = () => {
                                 formButtonPrimary: "h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl font-semibold text-base shadow-lg shadow-purple-500/30 transition-all duration-300",
                                 footerAction: "hidden",
                                 footer: "hidden",
+                                footerActionLink: "hidden",
+                                footerPages: "hidden",
+                                footerPagesLink: "hidden",
+                                badge: "hidden",
                                 formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-600",
+                                internal: "hidden",
+                                formHeaderTitle: "hidden",
+                                formHeaderSubtitle: "hidden",
                             },
                         }}
                         signInUrl="/sign-in"
@@ -189,12 +196,12 @@ const SignUpPage: React.FC = () => {
                         className="flex gap-12 mt-12"
                     >
                         <div className="text-center">
-                            <div className="text-3xl font-bold text-white">50K+</div>
-                            <div className="text-white/60 text-sm">Happy users</div>
+                            <div className="text-3xl font-bold text-white">26+</div>
+                            <div className="text-white/60 text-sm">Formats</div>
                         </div>
                         <div className="text-center">
-                            <div className="text-3xl font-bold text-white">4.9★</div>
-                            <div className="text-white/60 text-sm">Rating</div>
+                            <div className="text-3xl font-bold text-white">Free</div>
+                            <div className="text-white/60 text-sm">Forever</div>
                         </div>
                     </motion.div>
                 </div>

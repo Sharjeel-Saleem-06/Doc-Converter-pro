@@ -989,3 +989,35 @@ button[role="tab"] {
     border: 2px solid #fff;
   }
 }
+
+/* Hide Clerk Development Mode Badge */
+.cl-internal-b3fm6y,
+.cl-internal-1dauvpw,
+.cl-internal-nf6qhi,
+.cl-internal-178eckc,
+[data-localization-key*="developmentMode"],
+.cl-footer,
+.cl-footerAction,
+.cl-footerPages,
+.cl-internal-1hp5nqm,
+div[class*="cl-internal"] > a[href*="clerk.com"],
+.cl-badge,
+.cl-powered-by-clerk,
+a[href*="clerk.com"]:has(svg),
+div:has(> a[href*="clerk.com"]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Hide "Secured by Clerk" text */
+.cl-footerAction__signIn,
+.cl-footerAction__signUp,
+[class*="cl-footerAction"],
+[class*="powered"],
+.cl-internal-1hp5nqm {
+  display: none !important;
+}

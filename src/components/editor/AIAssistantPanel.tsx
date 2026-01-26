@@ -324,9 +324,9 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     const paragraphCount = documentContent.split(/\n\n+/).filter(p => p.trim()).length;
 
     return (
-        <div className="h-full w-full flex flex-col bg-background overflow-hidden">
+        <div className="h-full w-full flex flex-col bg-background" style={{ maxHeight: '100vh' }}>
             {/* Header - Fixed at top */}
-            <div className="flex-shrink-0 flex items-center justify-between p-3 border-b bg-gradient-to-r from-purple-500/5 to-pink-500/5">
+            <div className="flex-none flex items-center justify-between p-3 border-b bg-gradient-to-r from-purple-500/5 to-pink-500/5">
                 <div className="flex items-center gap-2">
                     <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg">
                         <Sparkles className="w-4 h-4 text-white" />
@@ -342,7 +342,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
             </div>
 
             {/* Stats Bar - Fixed */}
-            <div className="flex-shrink-0 px-3 py-2 border-b bg-muted/30 flex items-center justify-between text-[10px]">
+            <div className="flex-none px-3 py-2 border-b bg-muted/30 flex items-center justify-between text-[10px]">
                 <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {wordCount} words</span>
                     <span className="flex items-center gap-1"><Type className="w-3 h-3" /> {charCount} chars</span>
@@ -357,8 +357,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
             </div>
 
             {/* Tabs - Fill remaining space with proper scroll */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                <TabsList className="flex-shrink-0 grid grid-cols-5 mx-3 mt-3 h-8">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                <TabsList className="flex-none grid grid-cols-5 mx-3 mt-3 h-8">
                     <TabsTrigger value="actions" className="text-[10px] h-7 data-[state=active]:shadow-none gap-1"><Zap className="w-3.5 h-3.5" />Actions</TabsTrigger>
                     <TabsTrigger value="chat" className="text-[10px] h-7 data-[state=active]:shadow-none gap-1"><MessageSquare className="w-3.5 h-3.5" />Chat</TabsTrigger>
                     <TabsTrigger value="tools" className="text-[10px] h-7 data-[state=active]:shadow-none gap-1"><Wand2 className="w-3.5 h-3.5" />Tools</TabsTrigger>
@@ -367,9 +367,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 </TabsList>
 
                 {/* ACTIONS TAB */}
-                <TabsContent value="actions" className="flex-1 m-0 mt-2 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
-                    <ScrollArea className="flex-1 h-full">
-                        <div className="px-3 pt-3 pb-6 space-y-4">
+                <TabsContent value="actions" className="flex-1 m-0 mt-2 overflow-auto">
+                    <div className="px-3 pt-3 pb-20 space-y-4">
                             {/* Selection Status */}
                             {selectedText ? (
                                 <div className="p-2.5 bg-green-500/10 rounded-lg border border-green-500/20 flex items-center justify-between">
@@ -509,13 +508,11 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                             )}
                             {generatedContent && !isProcessing && <ResultCard content={generatedContent} id="gen" />}
                         </div>
-                    </ScrollArea>
                 </TabsContent>
 
                 {/* CHAT TAB */}
-                <TabsContent value="chat" className="flex-1 flex flex-col m-0 mt-2 min-h-0 overflow-hidden">
-                    <ScrollArea className="flex-1">
-                        <div className="px-3 pt-3 pb-3">
+                <TabsContent value="chat" className="flex-1 flex flex-col m-0 mt-2 overflow-hidden">
+                    <div className="flex-1 overflow-auto px-3 pt-3 pb-3">
                         {messages.length === 0 ? (
                             <div className="text-center py-6">
                                 <Bot className="w-8 h-8 mx-auto mb-2 text-muted-foreground/40" />
@@ -551,9 +548,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                 <div ref={messagesEndRef} />
                             </div>
                         )}
-                        </div>
-                    </ScrollArea>
-                    <div className="flex-shrink-0 p-3 border-t bg-background">
+                    </div>
+                    <div className="flex-none p-3 border-t bg-background">
                         {isStreaming && <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> AI is generating...</div>}
                         <Textarea value={input} onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
@@ -571,9 +567,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 </TabsContent>
 
                 {/* TOOLS TAB */}
-                <TabsContent value="tools" className="flex-1 m-0 mt-2 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
-                    <ScrollArea className="flex-1 h-full">
-                        <div className="px-3 pt-3 pb-6 space-y-3">
+                <TabsContent value="tools" className="flex-1 m-0 mt-2 overflow-auto">
+                    <div className="px-3 pt-3 pb-20 space-y-3">
                             {/* Translate */}
                             <div className="p-2 rounded-lg border bg-blue-500/5">
                                 <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><Globe className="w-3 h-3 text-blue-500" /> Translate</h4>
@@ -700,14 +695,12 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                             </div>
 
                             {generatedContent && !isProcessing && <ResultCard content={generatedContent} id="tool-gen" />}
-                        </div>
-                    </ScrollArea>
+                    </div>
                 </TabsContent>
 
                 {/* TEMPLATES TAB */}
-                <TabsContent value="templates" className="flex-1 m-0 mt-2 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
-                    <ScrollArea className="flex-1 h-full">
-                        <div className="px-3 pt-3 pb-6">
+                <TabsContent value="templates" className="flex-1 m-0 mt-2 overflow-auto">
+                    <div className="px-3 pt-3 pb-20">
                             {!selectedTemplate ? (
                                 <div className="space-y-2">
                                     {['social', 'business', 'marketing', 'academic', 'creative'].map(category => {
@@ -779,14 +772,12 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                     {generatedContent && <ResultCard content={generatedContent} id="template" />}
                                 </div>
                             )}
-                        </div>
-                    </ScrollArea>
+                    </div>
                 </TabsContent>
 
                 {/* INSIGHTS TAB */}
-                <TabsContent value="insights" className="flex-1 m-0 mt-2 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
-                    <ScrollArea className="flex-1 h-full">
-                        <div className="px-3 pt-3 pb-6 space-y-3">
+                <TabsContent value="insights" className="flex-1 m-0 mt-2 overflow-auto">
+                    <div className="px-3 pt-3 pb-20 space-y-3">
                             <Button onClick={handleAnalyzeDocument} disabled={!documentContent || isProcessing} className="w-full h-8 text-[10px]" variant={intelligence ? 'outline' : 'default'}>
                                 {isProcessing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <BarChart3 className="w-3 h-3 mr-1" />}
                                 {intelligence ? 'Re-analyze' : 'Analyze Document'}
@@ -867,8 +858,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                 )}
                             </>
                             )}
-                        </div>
-                    </ScrollArea>
+                    </div>
                 </TabsContent>
             </Tabs>
         </div>

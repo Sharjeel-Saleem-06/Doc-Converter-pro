@@ -99,16 +99,16 @@ const SignInPage: React.FC = () => {
                         className="flex gap-12 mt-16"
                     >
                         <div className="text-center">
-                            <div className="text-4xl font-bold text-white">1M+</div>
-                            <div className="text-white/60 text-sm">Files</div>
+                            <div className="text-4xl font-bold text-white">26+</div>
+                            <div className="text-white/60 text-sm">Formats</div>
                         </div>
                         <div className="text-center">
-                            <div className="text-4xl font-bold text-white">50K+</div>
-                            <div className="text-white/60 text-sm">Users</div>
+                            <div className="text-4xl font-bold text-white">100%</div>
+                            <div className="text-white/60 text-sm">Private</div>
                         </div>
                         <div className="text-center">
-                            <div className="text-4xl font-bold text-white">99.9%</div>
-                            <div className="text-white/60 text-sm">Uptime</div>
+                            <div className="text-4xl font-bold text-white">Free</div>
+                            <div className="text-white/60 text-sm">Forever</div>
                         </div>
                     </motion.div>
                 </div>
@@ -157,7 +157,14 @@ const SignInPage: React.FC = () => {
                                 formButtonPrimary: "h-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl font-semibold text-base shadow-lg shadow-indigo-500/30 transition-all duration-300",
                                 footerAction: "hidden",
                                 footer: "hidden",
+                                footerActionLink: "hidden",
+                                footerPages: "hidden",
+                                footerPagesLink: "hidden",
+                                badge: "hidden",
                                 formFieldInputShowPasswordButton: "text-gray-400 hover:text-gray-600",
+                                internal: "hidden",
+                                formHeaderTitle: "hidden",
+                                formHeaderSubtitle: "hidden",
                             },
                         }}
                         signUpUrl="/sign-up"
