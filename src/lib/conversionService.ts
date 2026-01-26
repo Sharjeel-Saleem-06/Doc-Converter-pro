@@ -266,6 +266,12 @@ export class ConversionService {
         }
       }
 
+      // Special handling for Image to PDF conversion
+      if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'].includes(fromFormat) && toFormat === 'pdf' && typeof content !== 'string') {
+        console.log(`Converting ${fromFormat.toUpperCase()} image to PDF`);
+        return await this.convertImageToPDF(content, fromFormat, options, originalSize, startTime);
+      }
+
       // Normalize content to string
       let textContent = await this.normalizeContent(content, fromFormat);
 
@@ -386,12 +392,12 @@ export class ConversionService {
       latex: ['pdf', 'html', 'txt', 'md'],
       odt: ['txt', 'html', 'md', 'pdf', 'docx'],
       odp: ['txt', 'html', 'md', 'pdf', 'pptx'],
-      png: ['jpg', 'jpeg', 'gif', 'bmp', 'webp'],
-      jpg: ['png', 'gif', 'bmp', 'webp'],
-      jpeg: ['png', 'jpg', 'gif', 'bmp', 'webp'],
-      gif: ['png', 'jpg', 'jpeg', 'bmp', 'webp'],
-      bmp: ['png', 'jpg', 'jpeg', 'gif', 'webp'],
-      webp: ['png', 'jpg', 'jpeg', 'gif', 'bmp']
+      png: ['pdf', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'],
+      jpg: ['pdf', 'png', 'gif', 'bmp', 'webp'],
+      jpeg: ['pdf', 'png', 'jpg', 'gif', 'bmp', 'webp'],
+      gif: ['pdf', 'png', 'jpg', 'jpeg', 'bmp', 'webp'],
+      bmp: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp'],
+      webp: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'bmp']
     };
 
     return from !== to && (supportedPaths[from]?.includes(to) || false);
@@ -857,6 +863,110 @@ export class ConversionService {
   }
 
   // Enhanced PDF conversion with better formatting
+  /**
+   * Convert image (PNG, JPG, JPEG, GIF, BMP, WEBP) to PDF
+   * Creates a PDF with the image fitted to the page
+   */
+  private async convertImageToPDF(
+    content: ArrayBuffer,
+    fromFormat: SupportedFormat,
+    options: ConversionOptions,
+    originalSize: number,
+    startTime: number
+  ): Promise<ConversionResult> {
+    try {
+      const doc = new jsPDF({
+        orientation: options.orientation || 'portrait',
+        unit: 'mm',
+        format: options.pageSize || 'a4'
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = options.margin || 10;
+
+      // Create an image element to get dimensions
+      const blob = new Blob([content], { type: `image/${fromFormat === 'jpg' ? 'jpeg' : fromFormat}` });
+      const imageUrl = URL.createObjectURL(blob);
+      
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+
+      // Calculate dimensions to fit image on page while maintaining aspect ratio
+      const imgWidth = img.width;
+      const imgHeight = img.height;
+      const imgAspectRatio = imgWidth / imgHeight;
+      
+      const availableWidth = pageWidth - (2 * margin);
+      const availableHeight = pageHeight - (2 * margin);
+      const pageAspectRatio = availableWidth / availableHeight;
+
+      let finalWidth, finalHeight;
+      
+      if (imgAspectRatio > pageAspectRatio) {
+        // Image is wider than page - fit to width
+        finalWidth = availableWidth;
+        finalHeight = availableWidth / imgAspectRatio;
+      } else {
+        // Image is taller than page - fit to height
+        finalHeight = availableHeight;
+        finalWidth = availableHeight * imgAspectRatio;
+      }
+
+      // Center the image on the page
+      const xOffset = (pageWidth - finalWidth) / 2;
+      const yOffset = (pageHeight - finalHeight) / 2;
+
+      // Convert image data to base64 for jsPDF
+      const base64Image = await this.arrayBufferToBase64(content, fromFormat);
+      
+      // Add image to PDF
+      doc.addImage(base64Image, fromFormat.toUpperCase() === 'JPG' ? 'JPEG' : fromFormat.toUpperCase(), 
+                   xOffset, yOffset, finalWidth, finalHeight);
+
+      // Add metadata
+      if (options.includeMetadata) {
+        doc.setProperties({
+          title: `Converted from ${fromFormat.toUpperCase()}`,
+          creator: 'DocConverter Pro'
+        });
+      }
+
+      // Add watermark if specified
+      if (options.watermark) {
+        doc.setFontSize(40);
+        doc.setTextColor(200, 200, 200);
+        doc.text(options.watermark, pageWidth / 2, pageHeight / 2, {
+          angle: 45,
+          align: 'center'
+        });
+      }
+
+      const pdfBlob = doc.output('blob');
+      URL.revokeObjectURL(imageUrl);
+
+      const processingTime = Date.now() - startTime;
+
+      return {
+        success: true,
+        data: pdfBlob,
+        metadata: {
+          originalSize,
+          convertedSize: pdfBlob.size,
+          processingTime,
+          format: 'pdf'
+        }
+      };
+    } catch (error) {
+      console.error('Image to PDF conversion error:', error);
+      throw new Error(`Failed to convert ${fromFormat.toUpperCase()} to PDF: ${error}`);
+    }
+  }
+
   private async convertToPDF(content: string, fromFormat: SupportedFormat, options: ConversionOptions): Promise<Blob> {
     // Smart orientation detection
     const shouldUseLandscape = options.orientation === 'landscape' ||
@@ -3520,6 +3630,20 @@ export class ConversionService {
     }
 
     return obj;
+  }
+
+  /**
+   * Convert ArrayBuffer to base64 string for image embedding
+   */
+  private async arrayBufferToBase64(buffer: ArrayBuffer, format: SupportedFormat): Promise<string> {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    const mimeType = format === 'jpg' || format === 'jpeg' ? 'image/jpeg' : `image/${format}`;
+    return `data:${mimeType};base64,${base64}`;
   }
 }
 

@@ -92,6 +92,7 @@ const BatchProcessorPage: React.FC = () => {
   });
   const [showSettings, setShowSettings] = useState(false);
   const [autoDownload, setAutoDownload] = useState(false);
+  const [mergeImages, setMergeImages] = useState(true); // New state for image merge option
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Analyze file for format detection
@@ -200,6 +201,181 @@ const BatchProcessorPage: React.FC = () => {
     setOverallProgress(0);
   };
 
+  // Convert multiple images to a single merged PDF
+  const convertImagesToPDFMerged = async (imagesToConvert: BatchFile[]) => {
+    setIsConverting(true);
+    setProcessing(true);
+    setOverallProgress(0);
+
+    const conversionToast = toast.loading('Merging images into a single PDF...');
+
+    try {
+      // Import jsPDF
+      const jsPDF = (await import('jspdf')).default;
+      
+      const pdf = new jsPDF({
+        orientation: conversionOptions.orientation || 'portrait',
+        unit: 'mm',
+        format: conversionOptions.pageSize.toLowerCase() as any
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = conversionOptions.margin || 10;
+
+      // Mark all files as processing
+      setBatchFiles(prev => prev.map(f => 
+        imagesToConvert.some(img => img.id === f.id) 
+          ? { ...f, status: 'processing' as const, progress: 0 } 
+          : f
+      ));
+
+      for (let i = 0; i < imagesToConvert.length; i++) {
+        const batchFile = imagesToConvert[i];
+
+        try {
+          // Update progress for current file
+          const fileProgress = Math.round(((i + 0.5) / imagesToConvert.length) * 100);
+          setBatchFiles(prev => prev.map(f => 
+            f.id === batchFile.id ? { ...f, progress: 50 } : f
+          ));
+          setOverallProgress(fileProgress);
+
+          // Read image as data URL
+          const imageData = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(batchFile.file);
+          });
+
+          // Load image to get dimensions
+          const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = reject;
+            image.src = imageData;
+          });
+
+          // Add new page for all images except the first
+          if (i > 0) {
+            pdf.addPage();
+          }
+
+          // Calculate dimensions to fit image on page
+          const imgAspectRatio = img.width / img.height;
+          const availableWidth = pageWidth - (2 * margin);
+          const availableHeight = pageHeight - (2 * margin);
+          const pageAspectRatio = availableWidth / availableHeight;
+
+          let finalWidth, finalHeight;
+          
+          if (imgAspectRatio > pageAspectRatio) {
+            finalWidth = availableWidth;
+            finalHeight = availableWidth / imgAspectRatio;
+          } else {
+            finalHeight = availableHeight;
+            finalWidth = availableHeight * imgAspectRatio;
+          }
+
+          const xOffset = (pageWidth - finalWidth) / 2;
+          const yOffset = (pageHeight - finalHeight) / 2;
+          
+          pdf.addImage(imageData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
+
+          // Mark file as completed
+          setBatchFiles(prev => prev.map(f => 
+            f.id === batchFile.id ? { ...f, progress: 100 } : f
+          ));
+        } catch (error) {
+          console.error(`Error processing ${batchFile.name}:`, error);
+          setBatchFiles(prev => prev.map(f => 
+            f.id === batchFile.id 
+              ? { ...f, status: 'error' as const, error: error instanceof Error ? error.message : 'Failed to process image' } 
+              : f
+          ));
+        }
+      }
+
+      // Generate PDF blob
+      const pdfBlob = pdf.output('blob');
+      const filename = 'merged_images.pdf';
+
+      // Mark all files as completed
+      const processingTime = Date.now();
+      setBatchFiles(prev => prev.map(f => 
+        imagesToConvert.some(img => img.id === f.id) && f.status !== 'error'
+          ? {
+              ...f,
+              status: 'completed' as const,
+              progress: 100,
+              convertedBlob: pdfBlob,
+              convertedName: filename,
+              processingTime: 0
+            } 
+          : f
+      ));
+
+      // Add to conversion context
+      addConvertedFile({
+        id: `batch-merged-${Date.now()}`,
+        originalName: `${imagesToConvert.length} images`,
+        convertedName: filename,
+        originalFormat: 'png', // Placeholder
+        convertedFormat: 'pdf',
+        size: pdfBlob.size,
+        blob: pdfBlob,
+        timestamp: new Date(),
+        metadata: {
+          originalSize: imagesToConvert.reduce((sum, f) => sum + f.size, 0),
+          convertedSize: pdfBlob.size,
+          processingTime: 0,
+          format: 'pdf',
+          imageCount: imagesToConvert.length
+        }
+      });
+
+      // Auto-download if enabled
+      if (autoDownload) {
+        downloadFile(pdfBlob, filename);
+      }
+
+      // Save to Supabase
+      if (user) {
+        try {
+          await addConversionHistory({
+            user_id: user.id,
+            original_filename: `${imagesToConvert.length}_images_merged`,
+            converted_filename: filename,
+            original_format: 'multiple_images',
+            converted_format: 'pdf',
+            file_size: pdfBlob.size,
+            conversion_time: 0,
+            status: 'completed'
+          });
+        } catch (error) {
+          console.error('Failed to save to history:', error);
+        }
+      }
+
+      setOverallProgress(100);
+      toast.success('All images merged into a single PDF!', { id: conversionToast });
+    } catch (error) {
+      console.error('Batch merge error:', error);
+      toast.error('Failed to merge images', { id: conversionToast });
+      
+      // Mark all files as error
+      setBatchFiles(prev => prev.map(f => 
+        imagesToConvert.some(img => img.id === f.id) && f.status === 'processing'
+          ? { ...f, status: 'error' as const, error: error instanceof Error ? error.message : 'Merge failed' } 
+          : f
+      ));
+    } finally {
+      setIsConverting(false);
+      setProcessing(false);
+    }
+  };
+
   // Convert all files
   const convertAllFiles = async () => {
     if (batchFiles.length === 0) {
@@ -210,6 +386,16 @@ const BatchProcessorPage: React.FC = () => {
     const pendingFiles = batchFiles.filter(f => f.status === 'pending' || f.status === 'error');
     if (pendingFiles.length === 0) {
       toast.error('No pending files to convert');
+      return;
+    }
+
+    // Check if all files are images and converting to PDF
+    const imageFormats: SupportedFormat[] = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'];
+    const allImagesConvertingToPDF = pendingFiles.every(f => imageFormats.includes(f.detectedFormat)) && outputFormat === 'pdf';
+
+    if (allImagesConvertingToPDF && pendingFiles.length > 1 && mergeImages) {
+      // Special handling: merge all images into a single PDF
+      await convertImagesToPDFMerged(pendingFiles);
       return;
     }
 
@@ -793,6 +979,22 @@ const BatchProcessorPage: React.FC = () => {
                           onCheckedChange={setAutoDownload}
                         />
                       </div>
+
+                      {/* Image merge option - only show when converting images to PDF */}
+                      {outputFormat === 'pdf' && batchFiles.some(f => ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'].includes(f.detectedFormat)) && (
+                        <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                          <div className="flex flex-col gap-1">
+                            <Label className="text-purple-700 dark:text-purple-300">Merge images into one PDF</Label>
+                            <p className="text-xs text-purple-600/80 dark:text-purple-400/80">
+                              Combine all images into a single PDF file instead of creating separate PDFs
+                            </p>
+                          </div>
+                          <Switch
+                            checked={mergeImages}
+                            onCheckedChange={setMergeImages}
+                          />
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between">
                         <Label>Enable compression</Label>

@@ -408,8 +408,38 @@ class ConversionService {
       const lines = pdf.splitTextToSize(csvData, 180);
       pdf.text(lines, options.margin, options.margin);
     } else if (this.isImageFormat(sourceFormat)) {
+      // Properly convert image to PDF using jsPDF addImage
       const imageData = await this.fileToDataURL(file);
-      pdf.addImage(imageData, 'JPEG', options.margin, options.margin, 160, 0);
+      
+      // Create an image to get dimensions
+      const img = await this.loadImage(imageData);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = options.margin;
+      
+      // Calculate dimensions to fit image on page while maintaining aspect ratio
+      const imgAspectRatio = img.width / img.height;
+      const availableWidth = pageWidth - (2 * margin);
+      const availableHeight = pageHeight - (2 * margin);
+      const pageAspectRatio = availableWidth / availableHeight;
+
+      let finalWidth, finalHeight;
+      
+      if (imgAspectRatio > pageAspectRatio) {
+        // Image is wider than page - fit to width
+        finalWidth = availableWidth;
+        finalHeight = availableWidth / imgAspectRatio;
+      } else {
+        // Image is taller than page - fit to height
+        finalHeight = availableHeight;
+        finalWidth = availableHeight * imgAspectRatio;
+      }
+
+      // Center the image on the page
+      const xOffset = (pageWidth - finalWidth) / 2;
+      const yOffset = (pageHeight - finalHeight) / 2;
+      
+      pdf.addImage(imageData, sourceFormat.toUpperCase(), xOffset, yOffset, finalWidth, finalHeight);
     }
 
     const pdfBlob = pdf.output('blob');
@@ -636,6 +666,134 @@ class ConversionService {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  }
+
+  private async loadImage(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  /**
+   * Convert multiple images to PDF (merge or separate)
+   * @param files - Array of image files
+   * @param options - Conversion options
+   * @param mergeIntoSingle - If true, creates one PDF with all images; if false, creates separate PDFs
+   */
+  async convertImagesToPDF(
+    files: File[],
+    options: Partial<ConversionOptions> = {},
+    mergeIntoSingle: boolean = false
+  ): Promise<{ data: Blob; name: string }[]> {
+    const defaultOptions: ConversionOptions = {
+      quality: 85,
+      compression: true,
+      preserveFormatting: true,
+      includeImages: true,
+      pageSize: 'A4',
+      orientation: 'portrait',
+      margin: 10,
+      fontSize: 12,
+      fontFamily: 'Arial'
+    };
+
+    const conversionOptions = { ...defaultOptions, ...options };
+
+    if (mergeIntoSingle) {
+      // Create a single PDF with all images
+      const pdf = new jsPDF({
+        orientation: conversionOptions.orientation,
+        unit: 'mm',
+        format: conversionOptions.pageSize.toLowerCase() as any
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = conversionOptions.margin;
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const imageData = await this.fileToDataURL(file);
+        const img = await this.loadImage(imageData);
+
+        // Add new page for all images except the first
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        // Calculate dimensions to fit image on page
+        const imgAspectRatio = img.width / img.height;
+        const availableWidth = pageWidth - (2 * margin);
+        const availableHeight = pageHeight - (2 * margin);
+        const pageAspectRatio = availableWidth / availableHeight;
+
+        let finalWidth, finalHeight;
+        
+        if (imgAspectRatio > pageAspectRatio) {
+          finalWidth = availableWidth;
+          finalHeight = availableWidth / imgAspectRatio;
+        } else {
+          finalHeight = availableHeight;
+          finalWidth = availableHeight * imgAspectRatio;
+        }
+
+        const xOffset = (pageWidth - finalWidth) / 2;
+        const yOffset = (pageHeight - finalHeight) / 2;
+        
+        pdf.addImage(imageData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
+      }
+
+      const pdfBlob = pdf.output('blob');
+      return [{ data: pdfBlob, name: 'merged_images.pdf' }];
+    } else {
+      // Create separate PDFs for each image
+      const results: { data: Blob; name: string }[] = [];
+
+      for (const file of files) {
+        const pdf = new jsPDF({
+          orientation: conversionOptions.orientation,
+          unit: 'mm',
+          format: conversionOptions.pageSize.toLowerCase() as any
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = conversionOptions.margin;
+
+        const imageData = await this.fileToDataURL(file);
+        const img = await this.loadImage(imageData);
+
+        // Calculate dimensions
+        const imgAspectRatio = img.width / img.height;
+        const availableWidth = pageWidth - (2 * margin);
+        const availableHeight = pageHeight - (2 * margin);
+        const pageAspectRatio = availableWidth / availableHeight;
+
+        let finalWidth, finalHeight;
+        
+        if (imgAspectRatio > pageAspectRatio) {
+          finalWidth = availableWidth;
+          finalHeight = availableWidth / imgAspectRatio;
+        } else {
+          finalHeight = availableHeight;
+          finalWidth = availableHeight * imgAspectRatio;
+        }
+
+        const xOffset = (pageWidth - finalWidth) / 2;
+        const yOffset = (pageHeight - finalHeight) / 2;
+        
+        pdf.addImage(imageData, 'JPEG', xOffset, yOffset, finalWidth, finalHeight);
+
+        const pdfBlob = pdf.output('blob');
+        const name = file.name.replace(/\.[^/.]+$/, '.pdf');
+        results.push({ data: pdfBlob, name });
+      }
+
+      return results;
+    }
   }
 
   private getMimeType(format: SupportedFormat): string {
