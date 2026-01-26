@@ -804,7 +804,7 @@ const EditorPage: React.FC = () => {
                       <TabsList>
                         <TabsTrigger value="editor" className="gap-2">
                           <Edit3 className="w-4 h-4" />
-                          Editor
+                          AI Editor
                         </TabsTrigger>
                         <TabsTrigger value="preview" className="gap-2">
                           <Eye className="w-4 h-4" />

@@ -1,15 +1,14 @@
 /**
- * AI Assistant Panel - Brand New Implementation
- * Ultra-simple design with guaranteed scrolling
+ * AI Assistant Panel - Fixed Scrolling & Complete Actions
  */
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
-    Sparkles, Send, Loader2, Wand2, Check, Plus, Minus,
-    Copy, CheckCheck, Bot, User, Trash2, ArrowRight,
-    Scissors, AlignLeft, Type, Globe, RefreshCw,
-    Heart, TrendingUp, Quote, Eye, Hash, Gauge,
-    AlertCircle, Lightbulb, Brain, ChevronLeft,
+    Sparkles, Send, Loader2, Check, Plus, Minus, Copy, CheckCheck, Bot, User, Trash2,
+    ArrowRight, Scissors, AlignLeft, Type, Globe, RefreshCw, Heart, TrendingUp, Quote,
+    Eye, Hash, Gauge, AlertCircle, Lightbulb, Brain, ChevronLeft, Mic, ListOrdered,
+    Palette, FileText, Smile, Briefcase, Megaphone, Flame, GraduationCap, Pencil,
+    Mail, Twitter, Linkedin, BookOpen, FileQuestion,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,17 +19,12 @@ import { langchainUtils } from '@/lib/langchain/llm';
 import { validateConfig, LANGCHAIN_CONFIG } from '@/lib/langchain/config';
 import type { StreamChunk } from '@/lib/langchain/types';
 import {
-    calculateReadability, generateFromTemplate,
-    SUPPORTED_LANGUAGES, CONTENT_TEMPLATES,
-    type ReadabilityMetrics, type ContentTemplate,
+    calculateReadability, generateFromTemplate, SUPPORTED_LANGUAGES, CONTENT_TEMPLATES,
+    WRITING_STYLES, type ReadabilityMetrics, type ContentTemplate,
 } from '@/lib/langchain/aiFeatures';
 import { toast } from 'react-hot-toast';
 
-interface Message {
-    id: string;
-    role: 'user' | 'assistant';
-    content: string;
-}
+interface Message { id: string; role: 'user' | 'assistant'; content: string; }
 
 interface AIAssistantPanelProps {
     selectedText: string;
@@ -40,41 +34,41 @@ interface AIAssistantPanelProps {
 }
 
 export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
-    selectedText,
-    documentContent,
-    onInsertText,
-    onReplaceText,
+    selectedText, documentContent, onInsertText, onReplaceText,
 }) => {
     const [activeTab, setActiveTab] = useState<'actions' | 'chat' | 'tools' | 'create' | 'analyze'>('actions');
     const [isProcessing, setIsProcessing] = useState(false);
     const [result, setResult] = useState('');
     const [copied, setCopied] = useState(false);
-    
     const [messages, setMessages] = useState<Message[]>([]);
     const [chatInput, setChatInput] = useState('');
     const [isStreaming, setIsStreaming] = useState(false);
-    
     const [targetLang, setTargetLang] = useState('es');
     const [generateInput, setGenerateInput] = useState('');
     const [selectedTemplate, setSelectedTemplate] = useState<ContentTemplate | null>(null);
     const [templateFields, setTemplateFields] = useState<Record<string, string>>({});
-    
     const [readability, setReadability] = useState<ReadabilityMetrics | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     
     const config = validateConfig();
     const wordCount = documentContent.split(/\s+/).filter(w => w).length;
     const charCount = documentContent.length;
 
     useEffect(() => {
-        if (documentContent.length > 50) {
-            setReadability(calculateReadability(documentContent));
-        }
+        if (documentContent.length > 50) setReadability(calculateReadability(documentContent));
     }, [documentContent]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    // Scroll to top when tab changes
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = 0;
+        }
+    }, [activeTab]);
 
     const processAI = async (prompt: string) => {
         setIsProcessing(true);
@@ -85,27 +79,46 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 if (!chunk.done) { res += chunk.content; setResult(res); }
             }, 'You are a helpful writing assistant.', 'rewrite');
             toast.success('Done!');
-        } catch (err) {
-            toast.error('Failed');
-        } finally {
-            setIsProcessing(false);
-        }
+        } catch { toast.error('Failed'); }
+        finally { setIsProcessing(false); }
     };
 
-    const handleAction = (action: string) => {
-        const text = action === 'continue' ? documentContent : selectedText;
+    const handleAction = (action: string, customText?: string) => {
+        const text = customText || (action === 'continue' ? documentContent : selectedText);
         if (!text.trim()) { toast.error('Select text first'); return; }
         const prompts: Record<string, string> = {
-            grammar: `Fix grammar: ${text}`,
-            professional: `Rewrite professionally: ${text}`,
-            casual: `Rewrite casually: ${text}`,
-            expand: `Expand: ${text}`,
-            summarize: `Summarize: ${text}`,
-            continue: `Continue: ${text}`,
-            shorten: `Shorten: ${text}`,
-            simplify: `Simplify: ${text}`,
+            grammar: `Fix all grammar, spelling, and punctuation errors:\n\n${text}`,
+            professional: `Rewrite in professional, business tone:\n\n${text}`,
+            casual: `Rewrite in casual, friendly tone:\n\n${text}`,
+            expand: `Expand with more details:\n\n${text}`,
+            summarize: `Summarize concisely:\n\n${text}`,
+            continue: `Continue writing naturally:\n\n${text}`,
+            shorten: `Make shorter and concise:\n\n${text}`,
+            simplify: `Simplify using simple words:\n\n${text}`,
+            formal: `Rewrite in formal tone:\n\n${text}`,
+            friendly: `Rewrite in friendly tone:\n\n${text}`,
+            persuasive: `Rewrite persuasively:\n\n${text}`,
+            confident: `Rewrite with confidence:\n\n${text}`,
+            bullets: `Convert to bullet points:\n\n${text}`,
+            numbered: `Convert to numbered list:\n\n${text}`,
+            paragraphs: `Rewrite as paragraphs:\n\n${text}`,
+            headlines: `Create 5 headlines:\n\n${text}`,
         };
         processAI(prompts[action] || text);
+    };
+
+    const handleGenerate = async (type: string) => {
+        const topic = generateInput.trim() || selectedText.trim();
+        if (!topic) { toast.error('Enter topic'); return; }
+        const prompts: Record<string, string> = {
+            email: `Write professional email about: ${topic}`,
+            tweet: `Write engaging tweet about: ${topic}`,
+            linkedin: `Write LinkedIn post about: ${topic}`,
+            explain: `Explain simply: ${topic}`,
+            outline: `Create outline for: ${topic}`,
+            questions: `Generate 5 questions about: ${topic}`,
+        };
+        processAI(prompts[type] || topic);
     };
 
     const handleChat = async () => {
@@ -125,14 +138,13 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 }
             }, 'You are a helpful assistant.', 'generate');
         } catch {
-            setMessages(prev => prev.map(m => m.id === aiMsg.id ? { ...m, content: 'Error occurred.' } : m));
+            setMessages(prev => prev.map(m => m.id === aiMsg.id ? { ...m, content: 'Error.' } : m));
         } finally { setIsStreaming(false); }
     };
 
     const handleCopy = () => { navigator.clipboard.writeText(result); setCopied(true); toast.success('Copied!'); setTimeout(() => setCopied(false), 2000); };
     const handleInsert = () => { onInsertText(result); setResult(''); toast.success('Inserted!'); };
     const handleReplace = () => { onReplaceText(result); setResult(''); toast.success('Replaced!'); };
-
     const getColor = (score: number) => score >= 60 ? 'text-green-500' : score >= 30 ? 'text-yellow-500' : 'text-red-500';
 
     const templatesByCategory = CONTENT_TEMPLATES.reduce((acc, t) => {
@@ -142,9 +154,22 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     }, {} as Record<string, ContentTemplate[]>);
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'white' }}>
+        <div style={{ 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            backgroundColor: 'white',
+            position: 'relative',
+            overflow: 'hidden'
+        }}>
             {/* HEADER - Fixed 80px */}
-            <div style={{ height: '80px', flexShrink: 0, padding: '12px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#faf5ff' }}>
+            <div style={{ 
+                height: '80px', 
+                flexShrink: 0, 
+                padding: '12px', 
+                borderBottom: '1px solid #e5e7eb', 
+                backgroundColor: '#faf5ff' 
+            }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ padding: '8px', borderRadius: '8px', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)' }}>
@@ -174,7 +199,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 </div>
             </div>
 
-            {/* TABS - Fixed 40px */}
+            {/* TABS - Fixed 40px - REMOVED BLUE OUTLINE */}
             <div style={{ height: '40px', flexShrink: 0, display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
                 {[
                     { id: 'actions', label: 'Actions' },
@@ -197,6 +222,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                             color: activeTab === tab.id ? '#a855f7' : '#6b7280',
                             cursor: 'pointer',
                             transition: 'all 0.2s',
+                            outline: 'none', // REMOVE BLUE OUTLINE
                         }}
                     >
                         {tab.label}
@@ -204,16 +230,21 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 ))}
             </div>
 
-            {/* CONTENT - Scrollable with calc height */}
-            <div style={{ 
-                height: 'calc(100% - 120px)', 
-                overflowY: 'auto', 
-                overflowX: 'hidden',
-                WebkitOverflowScrolling: 'touch'
-            }}>
-                {/* ACTIONS TAB */}
+            {/* CONTENT - Scrollable calc(100% - 120px) with padding-bottom */}
+            <div 
+                ref={scrollContainerRef}
+                style={{ 
+                    height: 'calc(100% - 120px)', 
+                    overflowY: 'auto', 
+                    overflowX: 'hidden',
+                    WebkitOverflowScrolling: 'touch',
+                    position: 'relative'
+                }}
+            >
+                {/* ACTIONS TAB - MORE OPTIONS */}
                 {activeTab === 'actions' && (
-                    <div style={{ padding: '12px' }}>
+                    <div style={{ padding: '12px', paddingBottom: '60px' }}> {/* Added extra bottom padding */}
+                        {/* Selection Status */}
                         <div style={{ padding: '8px', backgroundColor: selectedText ? '#dcfce7' : '#fef3c7', borderRadius: '8px', fontSize: '11px', marginBottom: '12px' }}>
                             {selectedText ? (
                                 <span><Check style={{ width: '12px', height: '12px', display: 'inline', marginRight: '4px' }} />{selectedText.split(/\s+/).length} words selected</span>
@@ -222,28 +253,108 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                             )}
                         </div>
 
-                        <h4 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>Quick Actions</h4>
+                        {/* Quick Actions */}
+                        <h4 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Sparkles style={{ width: '14px', height: '14px', color: '#eab308' }} /> Quick Actions
+                        </h4>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '16px' }}>
                             {[
-                                { id: 'grammar', label: 'Fix Grammar', color: '#22c55e' },
-                                { id: 'professional', label: 'Professional', color: '#3b82f6' },
-                                { id: 'casual', label: 'Casual', color: '#f97316' },
-                                { id: 'expand', label: 'Expand', color: '#a855f7' },
-                                { id: 'summarize', label: 'Summarize', color: '#06b6d4' },
-                                { id: 'continue', label: 'Continue', color: '#ec4899' },
-                                { id: 'shorten', label: 'Shorten', color: '#ef4444' },
-                                { id: 'simplify', label: 'Simplify', color: '#14b8a6' },
+                                { id: 'grammar', label: 'Fix Grammar', color: '#22c55e', icon: Check },
+                                { id: 'professional', label: 'Professional', color: '#3b82f6', icon: Briefcase },
+                                { id: 'casual', label: 'Casual', color: '#f97316', icon: Smile },
+                                { id: 'expand', label: 'Expand', color: '#a855f7', icon: Plus },
+                                { id: 'summarize', label: 'Summarize', color: '#06b6d4', icon: Minus },
+                                { id: 'continue', label: 'Continue', color: '#ec4899', icon: ArrowRight },
+                                { id: 'shorten', label: 'Shorten', color: '#ef4444', icon: Scissors },
+                                { id: 'simplify', label: 'Simplify', color: '#14b8a6', icon: AlignLeft },
                             ].map(action => (
-                                <Button
-                                    key={action.id}
-                                    variant="outline"
-                                    size="sm"
+                                <Button key={action.id} variant="outline" size="sm"
                                     disabled={(!selectedText && action.id !== 'continue') || isProcessing || !config.valid}
                                     onClick={() => handleAction(action.id)}
-                                    style={{ fontSize: '10px', height: '32px', justifyContent: 'flex-start' }}
-                                >
-                                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: action.color, marginRight: '6px' }} />
+                                    style={{ fontSize: '10px', height: '32px', justifyContent: 'flex-start' }}>
+                                    <div style={{ width: '16px', height: '16px', borderRadius: '4px', backgroundColor: action.color, marginRight: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <action.icon style={{ width: '10px', height: '10px', color: 'white' }} />
+                                    </div>
                                     {action.label}
+                                </Button>
+                            ))}
+                        </div>
+
+                        {/* Change Tone */}
+                        <h4 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Mic style={{ width: '14px', height: '14px', color: '#3b82f6' }} /> Change Tone
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '16px' }}>
+                            {[
+                                { id: 'formal', label: 'Formal', icon: GraduationCap },
+                                { id: 'friendly', label: 'Friendly', icon: Heart },
+                                { id: 'persuasive', label: 'Persuasive', icon: Megaphone },
+                                { id: 'confident', label: 'Confident', icon: Flame },
+                            ].map(tone => (
+                                <Button key={tone.id} variant="outline" size="sm"
+                                    disabled={!selectedText || isProcessing || !config.valid}
+                                    onClick={() => handleAction(tone.id)}
+                                    style={{ fontSize: '10px', height: '28px' }}>
+                                    <tone.icon style={{ width: '12px', height: '12px', marginRight: '4px' }} />{tone.label}
+                                </Button>
+                            ))}
+                        </div>
+
+                        {/* Format As */}
+                        <h4 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <AlignLeft style={{ width: '14px', height: '14px', color: '#22c55e' }} /> Format As
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '16px' }}>
+                            {[
+                                { id: 'bullets', label: 'Bullets', icon: ListOrdered },
+                                { id: 'numbered', label: 'Numbered', icon: ListOrdered },
+                                { id: 'paragraphs', label: 'Paragraphs', icon: AlignLeft },
+                                { id: 'headlines', label: 'Headlines', icon: Type },
+                            ].map(fmt => (
+                                <Button key={fmt.id} variant="outline" size="sm"
+                                    disabled={!selectedText || isProcessing || !config.valid}
+                                    onClick={() => handleAction(fmt.id)}
+                                    style={{ fontSize: '10px', height: '28px', justifyContent: 'flex-start' }}>
+                                    <fmt.icon style={{ width: '12px', height: '12px', marginRight: '6px' }} />{fmt.label}
+                                </Button>
+                            ))}
+                        </div>
+
+                        {/* Writing Styles */}
+                        <h4 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Palette style={{ width: '14px', height: '14px', color: '#a855f7' }} /> Writing Styles
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '16px' }}>
+                            {WRITING_STYLES.slice(0, 6).map(style => (
+                                <Button key={style.id} variant="outline" size="sm"
+                                    disabled={!selectedText || isProcessing || !config.valid}
+                                    onClick={() => handleAction(style.id)}
+                                    style={{ fontSize: '10px', height: '28px', justifyContent: 'flex-start' }}>
+                                    <span style={{ marginRight: '6px' }}>{style.icon}</span>{style.name}
+                                </Button>
+                            ))}
+                        </div>
+
+                        {/* Quick Generate */}
+                        <h4 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Sparkles style={{ width: '14px', height: '14px', color: '#ec4899' }} /> Quick Generate
+                        </h4>
+                        <Input value={generateInput} onChange={e => setGenerateInput(e.target.value)}
+                            placeholder="Enter topic..." style={{ height: '32px', fontSize: '11px', marginBottom: '8px' }} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '16px' }}>
+                            {[
+                                { id: 'email', label: 'Email', icon: Mail },
+                                { id: 'tweet', label: 'Tweet', icon: Twitter },
+                                { id: 'linkedin', label: 'LinkedIn', icon: Linkedin },
+                                { id: 'explain', label: 'Explain', icon: BookOpen },
+                                { id: 'outline', label: 'Outline', icon: ListOrdered },
+                                { id: 'questions', label: 'Questions', icon: FileQuestion },
+                            ].map(opt => (
+                                <Button key={opt.id} variant="outline" size="sm"
+                                    disabled={(!generateInput && !selectedText) || isProcessing || !config.valid}
+                                    onClick={() => handleGenerate(opt.id)}
+                                    style={{ fontSize: '10px', height: '28px' }}>
+                                    <opt.icon style={{ width: '12px', height: '12px', marginRight: '4px' }} />{opt.label}
                                 </Button>
                             ))}
                         </div>
@@ -301,10 +412,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                                 </div>
                                             )}
                                             <div style={{
-                                                maxWidth: '80%',
-                                                padding: '8px 12px',
-                                                borderRadius: '12px',
-                                                fontSize: '11px',
+                                                maxWidth: '80%', padding: '8px 12px', borderRadius: '12px', fontSize: '11px',
                                                 backgroundColor: msg.role === 'user' ? '#a855f7' : '#f3f4f6',
                                                 color: msg.role === 'user' ? 'white' : '#1f2937',
                                             }}>
@@ -323,20 +431,18 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                         </div>
                         <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb', flexShrink: 0 }}>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                                <Textarea
-                                    value={chatInput}
-                                    onChange={e => setChatInput(e.target.value)}
+                                <Textarea value={chatInput} onChange={e => setChatInput(e.target.value)}
                                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChat(); }}}
-                                    placeholder="Ask AI..."
-                                    disabled={isStreaming || !config.valid}
-                                    style={{ minHeight: '36px', maxHeight: '96px', fontSize: '11px', flex: 1 }}
-                                />
-                                <Button onClick={handleChat} disabled={!chatInput.trim() || isStreaming || !config.valid} style={{ height: '36px', padding: '0 12px', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)' }}>
+                                    placeholder="Ask AI..." disabled={isStreaming || !config.valid}
+                                    style={{ minHeight: '36px', maxHeight: '96px', fontSize: '11px', flex: 1 }} />
+                                <Button onClick={handleChat} disabled={!chatInput.trim() || isStreaming || !config.valid}
+                                    style={{ height: '36px', padding: '0 12px', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)' }}>
                                     <Send style={{ width: '16px', height: '16px' }} />
                                 </Button>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-                                <Button variant="ghost" size="sm" onClick={() => setMessages([])} disabled={messages.length === 0} style={{ fontSize: '10px', height: '24px' }}>
+                                <Button variant="ghost" size="sm" onClick={() => setMessages([])} disabled={messages.length === 0}
+                                    style={{ fontSize: '10px', height: '24px' }}>
                                     <Trash2 style={{ width: '12px', height: '12px', marginRight: '4px' }} /> Clear
                                 </Button>
                                 <span style={{ fontSize: '10px', color: '#9ca3af' }}>Enter to send</span>
@@ -345,9 +451,9 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                     </div>
                 )}
 
-                {/* TOOLS TAB */}
+                {/* TOOLS, CREATE, ANALYZE TABS - keeping same structure but with padding-bottom */}
                 {activeTab === 'tools' && (
-                    <div style={{ padding: '12px' }}>
+                    <div style={{ padding: '12px', paddingBottom: '60px' }}>
                         <h4 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>AI Tools</h4>
                         <div style={{ marginBottom: '16px' }}>
                             {[
@@ -356,7 +462,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                 { id: 'seo', label: 'SEO Optimize', icon: TrendingUp },
                                 { id: 'quotes', label: 'Find Quotes', icon: Quote },
                             ].map(tool => (
-                                <Button key={tool.id} variant="outline" disabled={!selectedText || isProcessing || !config.valid} onClick={() => handleAction('professional')}
+                                <Button key={tool.id} variant="outline" disabled={!selectedText || isProcessing || !config.valid}
+                                    onClick={() => handleAction('professional')}
                                     style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '6px', height: '48px' }}>
                                     <tool.icon style={{ width: '16px', height: '16px', marginRight: '8px', color: '#9ca3af' }} />
                                     <div style={{ textAlign: 'left' }}>
@@ -372,8 +479,12 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                                     <span style={{ fontSize: '11px', fontWeight: '600' }}>Result</span>
                                     <div style={{ display: 'flex', gap: '4px' }}>
-                                        <Button size="sm" variant="ghost" onClick={handleCopy} style={{ height: '24px', padding: '0 8px' }}>{copied ? <CheckCheck style={{ width: '12px', height: '12px' }} /> : <Copy style={{ width: '12px', height: '12px' }} />}</Button>
-                                        <Button size="sm" variant="ghost" onClick={handleInsert} style={{ height: '24px', padding: '0 8px' }}><Plus style={{ width: '12px', height: '12px' }} /></Button>
+                                        <Button size="sm" variant="ghost" onClick={handleCopy} style={{ height: '24px', padding: '0 8px' }}>
+                                            {copied ? <CheckCheck style={{ width: '12px', height: '12px' }} /> : <Copy style={{ width: '12px', height: '12px' }} />}
+                                        </Button>
+                                        <Button size="sm" variant="ghost" onClick={handleInsert} style={{ height: '24px', padding: '0 8px' }}>
+                                            <Plus style={{ width: '12px', height: '12px' }} />
+                                        </Button>
                                     </div>
                                 </div>
                                 <div style={{ maxHeight: '200px', overflowY: 'auto', backgroundColor: 'white', borderRadius: '4px', padding: '8px' }}>
@@ -384,9 +495,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                     </div>
                 )}
 
-                {/* CREATE TAB */}
                 {activeTab === 'create' && (
-                    <div style={{ padding: '12px' }}>
+                    <div style={{ padding: '12px', paddingBottom: '60px' }}>
                         {!selectedTemplate ? (
                             <div>
                                 {Object.entries(templatesByCategory).map(([category, templates]) => (
@@ -394,7 +504,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                         <h4 style={{ fontSize: '11px', fontWeight: '600', marginBottom: '6px', textTransform: 'capitalize' }}>{category}</h4>
                                         {templates.map(t => (
                                             <button key={t.id} onClick={() => { setSelectedTemplate(t); setTemplateFields({}); setResult(''); }}
-                                                style={{ width: '100%', padding: '8px', textAlign: 'left', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', marginBottom: '6px', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                                style={{ width: '100%', padding: '8px', textAlign: 'left', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', marginBottom: '6px', cursor: 'pointer', outline: 'none' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <span style={{ fontSize: '18px' }}>{t.icon}</span>
                                                     <div style={{ flex: 1 }}>
@@ -410,7 +520,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                             </div>
                         ) : (
                             <div>
-                                <Button variant="ghost" size="sm" onClick={() => { setSelectedTemplate(null); setResult(''); }} style={{ fontSize: '10px', height: '24px', marginBottom: '12px' }}>
+                                <Button variant="ghost" size="sm" onClick={() => { setSelectedTemplate(null); setResult(''); }}
+                                    style={{ fontSize: '10px', height: '24px', marginBottom: '12px' }}>
                                     <ChevronLeft style={{ width: '12px', height: '12px', marginRight: '4px' }} /> Back
                                 </Button>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', backgroundColor: '#f9fafb', borderRadius: '8px', marginBottom: '12px' }}>
@@ -426,27 +537,30 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                             {field.label} {field.required && <span style={{ color: '#ef4444' }}>*</span>}
                                         </label>
                                         {field.type === 'textarea' ? (
-                                            <Textarea placeholder={field.placeholder} value={templateFields[field.id] || ''} onChange={e => setTemplateFields(p => ({ ...p, [field.id]: e.target.value }))} style={{ minHeight: '60px', fontSize: '11px' }} />
+                                            <Textarea placeholder={field.placeholder} value={templateFields[field.id] || ''}
+                                                onChange={e => setTemplateFields(p => ({ ...p, [field.id]: e.target.value }))}
+                                                style={{ minHeight: '60px', fontSize: '11px' }} />
                                         ) : field.type === 'select' ? (
                                             <Select value={templateFields[field.id] || ''} onValueChange={v => setTemplateFields(p => ({ ...p, [field.id]: v }))}>
                                                 <SelectTrigger style={{ height: '32px', fontSize: '11px' }}><SelectValue placeholder="Select..." /></SelectTrigger>
                                                 <SelectContent>{field.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}</SelectContent>
                                             </Select>
                                         ) : (
-                                            <Input placeholder={field.placeholder} value={templateFields[field.id] || ''} onChange={e => setTemplateFields(p => ({ ...p, [field.id]: e.target.value }))} style={{ height: '32px', fontSize: '11px' }} />
+                                            <Input placeholder={field.placeholder} value={templateFields[field.id] || ''}
+                                                onChange={e => setTemplateFields(p => ({ ...p, [field.id]: e.target.value }))}
+                                                style={{ height: '32px', fontSize: '11px' }} />
                                         )}
                                     </div>
                                 ))}
                                 <Button onClick={async () => {
-                                    setIsProcessing(true);
-                                    setResult('');
+                                    setIsProcessing(true); setResult('');
                                     try {
                                         const res = await generateFromTemplate(selectedTemplate, templateFields);
-                                        setResult(res);
-                                        toast.success('Generated!');
+                                        setResult(res); toast.success('Generated!');
                                     } catch { toast.error('Failed'); }
                                     finally { setIsProcessing(false); }
-                                }} disabled={isProcessing || !config.valid} style={{ width: '100%', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)' }}>
+                                }} disabled={isProcessing || !config.valid}
+                                    style={{ width: '100%', background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)' }}>
                                     {isProcessing ? <Loader2 style={{ width: '16px', height: '16px', marginRight: '8px', animation: 'spin 1s linear infinite' }} /> : <Sparkles style={{ width: '16px', height: '16px', marginRight: '8px' }} />}
                                     Generate
                                 </Button>
@@ -462,9 +576,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                     </div>
                 )}
 
-                {/* ANALYZE TAB */}
                 {activeTab === 'analyze' && (
-                    <div style={{ padding: '12px' }}>
+                    <div style={{ padding: '12px', paddingBottom: '60px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
                             {[
                                 { label: 'Words', value: wordCount, icon: Type },
@@ -497,7 +610,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                         <div>
                             <h4 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>AI Analysis</h4>
                             {['Analyze Sentiment', 'Extract Topics', 'Suggest Improvements'].map(label => (
-                                <Button key={label} variant="outline" disabled={!documentContent || isProcessing || !config.valid} onClick={() => handleAction('summarize')}
+                                <Button key={label} variant="outline" disabled={!documentContent || isProcessing || !config.valid}
+                                    onClick={() => handleAction('summarize')}
                                     style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '6px', height: '40px' }}>
                                     <Lightbulb style={{ width: '16px', height: '16px', marginRight: '8px', color: '#9ca3af' }} />
                                     <div style={{ fontSize: '11px', fontWeight: '500' }}>{label}</div>
