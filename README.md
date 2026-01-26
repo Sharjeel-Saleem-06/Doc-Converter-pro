@@ -9,6 +9,8 @@ Modern document conversion and AI editing platform with 26+ formats, intelligent
 
 ### 📄 Document Conversion
 - **26+ format conversions**: PDF, DOCX, XLSX, PPTX, images, markdown, and more
+- **Image to PDF**: Convert PNG, JPG, JPEG, GIF, BMP, WEBP images to PDF with automatic centering and aspect ratio preservation
+- **Batch image merge**: Combine multiple images into a single PDF or create separate PDFs for each image
 - **Batch processing**: convert multiple files simultaneously
 - **ZIP download**: bundle converted files for easy distribution
 - **Smart format detection**: auto-detects file types from content
@@ -167,8 +169,14 @@ The AI editor uses Groq's Llama 3.3 model through LangChain to provide:
 Supports bidirectional conversion between:
 - PDF ↔ DOCX ↔ TXT ↔ Markdown
 - XLSX ↔ CSV ↔ JSON
-- Images ↔ PDF
+- **Images (PNG, JPG, JPEG, GIF, BMP, WEBP) → PDF** with smart fitting and centering
+- Images ↔ Other image formats
 - And many more combinations
+
+**Special Image Features:**
+- **Single image to PDF**: Automatically centers and scales images to fit PDF pages
+- **Multiple images to merged PDF**: Combine multiple images into one PDF (each image = one page)
+- **Multiple images to separate PDFs**: Create individual PDFs for each image
 
 ### Privacy & Security
 - All document conversions happen client-side

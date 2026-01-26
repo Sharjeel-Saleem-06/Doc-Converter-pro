@@ -641,7 +641,7 @@ const ConverterPage: React.FC = () => {
                   </motion.button>
 
                   <div className="flex flex-wrap justify-center gap-2 mb-4">
-                    {['CSV', 'PDF', 'DOCX', 'JSON'].map((format) => (
+                    {['CSV', 'PDF', 'DOCX', 'JSON', 'PNG', 'JPG', 'GIF'].map((format) => (
                       <Badge key={format} variant="secondary" className="text-xs">
                         {format}
                       </Badge>

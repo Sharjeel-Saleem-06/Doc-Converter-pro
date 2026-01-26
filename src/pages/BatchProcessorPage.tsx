@@ -696,7 +696,7 @@ const BatchProcessorPage: React.FC = () => {
                   </motion.button>
 
                   <div className="flex flex-wrap justify-center gap-2 mt-4">
-                    {['PDF', 'DOCX', 'CSV', 'JSON', 'TXT', 'MD', 'HTML'].map((format) => (
+                    {['PDF', 'DOCX', 'CSV', 'JSON', 'PNG', 'JPG', 'GIF', 'TXT'].map((format) => (
                       <Badge key={format} variant="secondary" className="text-xs">{format}</Badge>
                     ))}
                   </div>
