@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { syncUserFromClerk } from '@/lib/supabase';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // Layout Components
 import Header from '@/components/layout/Header';
@@ -167,18 +168,20 @@ function AppRoutes() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          <ConversionProvider>
-            <Router>
-              <AppRoutes />
-              <Toaster />
-            </Router>
-          </ConversionProvider>
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary componentName="DocConverter App">
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <TooltipProvider>
+            <ConversionProvider>
+              <Router>
+                <AppRoutes />
+                <Toaster />
+              </Router>
+            </ConversionProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

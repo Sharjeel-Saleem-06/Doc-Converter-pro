@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useUser, useAuth, UserButton } from '@clerk/clerk-react';
 import { motion } from 'framer-motion';
 import {
@@ -16,7 +16,8 @@ import {
     Shield,
     Palette,
     Globe,
-    Bell
+    Bell,
+    Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +27,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useTheme, useTranslation } from '@/contexts/ThemeContext';
+import { getConversionStats } from '@/lib/supabase';
 import {
     Select,
     SelectContent,
@@ -42,13 +44,39 @@ const ProfilePage: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isEditingName, setIsEditingName] = useState(false);
     const [newName, setNewName] = useState('');
+    const [isLoadingStats, setIsLoadingStats] = useState(true);
+    const [stats, setStats] = useState({
+        totalConversions: 0,
+        filesConverted: 0,
+        totalFilesSize: 0,
+        memberSince: 'N/A',
+    });
 
-    // Mock stats - in real implementation, fetch from Supabase
-    const stats = {
-        totalConversions: 47,
-        filesConverted: 156,
-        memberSince: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
-    };
+    // Fetch real stats from Supabase
+    useEffect(() => {
+        const fetchStats = async () => {
+            if (!user?.id) {
+                setIsLoadingStats(false);
+                return;
+            }
+
+            try {
+                const conversionStats = await getConversionStats(user.id);
+                setStats({
+                    totalConversions: conversionStats.totalConversions,
+                    filesConverted: conversionStats.totalConversions, // Same as conversions
+                    totalFilesSize: conversionStats.totalFilesSize,
+                    memberSince: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A',
+                });
+            } catch (error) {
+                console.error('Failed to fetch stats:', error);
+            } finally {
+                setIsLoadingStats(false);
+            }
+        };
+
+        fetchStats();
+    }, [user]);
 
     const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -227,7 +255,11 @@ const ProfilePage: React.FC = () => {
                                         className="text-center p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                                     >
                                         <FileText className="w-6 h-6 mx-auto mb-2 text-blue-500" />
-                                        <div className="text-2xl font-bold">{stats.totalConversions}</div>
+                                        {isLoadingStats ? (
+                                            <Loader2 className="w-6 h-6 mx-auto animate-spin text-muted-foreground" />
+                                        ) : (
+                                            <div className="text-2xl font-bold">{stats.totalConversions}</div>
+                                        )}
                                         <div className="text-sm text-muted-foreground">Conversions</div>
                                     </motion.div>
                                     <motion.div
@@ -235,15 +267,23 @@ const ProfilePage: React.FC = () => {
                                         className="text-center p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                                     >
                                         <TrendingUp className="w-6 h-6 mx-auto mb-2 text-green-500" />
-                                        <div className="text-2xl font-bold">{stats.filesConverted}</div>
-                                        <div className="text-sm text-muted-foreground">Files Converted</div>
+                                        {isLoadingStats ? (
+                                            <Loader2 className="w-6 h-6 mx-auto animate-spin text-muted-foreground" />
+                                        ) : (
+                                            <div className="text-2xl font-bold">
+                                                {stats.totalFilesSize > 0 
+                                                    ? `${(stats.totalFilesSize / (1024 * 1024)).toFixed(1)} MB` 
+                                                    : '0 MB'}
+                                            </div>
+                                        )}
+                                        <div className="text-sm text-muted-foreground">Data Processed</div>
                                     </motion.div>
                                     <motion.div
                                         whileHover={{ scale: 1.05 }}
                                         className="text-center p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                                     >
                                         <Clock className="w-6 h-6 mx-auto mb-2 text-purple-500" />
-                                        <div className="text-2xl font-bold">Pro</div>
+                                        <div className="text-2xl font-bold">Free</div>
                                         <div className="text-sm text-muted-foreground">Account Type</div>
                                     </motion.div>
                                 </div>

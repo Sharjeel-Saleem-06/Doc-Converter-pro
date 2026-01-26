@@ -1,6 +1,7 @@
 /**
  * Enhanced AI Assistant Panel Component
- * Fixed layout - no duplicate scrollbars, content fills space
+ * Fixed layout - proper scrolling, no content cutoff, full functionality
+ * v2.0 - Complete UI overhaul with proper overflow handling
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -14,6 +15,7 @@ import {
     GraduationCap, Briefcase, Heart, Flame, Mic, AlertCircle, TrendingUp,
     Eye, Clock, Percent, BarChart2, Languages, Quote, Sparkle,
 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -295,18 +297,23 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     const getLangName = (code: string) => SUPPORTED_LANGUAGES.find(l => l.code === code)?.name || code;
 
     const ResultCard = ({ content, id }: { content: string; id: string }) => (
-        <div className="p-2 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-lg border border-purple-500/20">
-            <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] font-medium flex items-center gap-1"><Sparkles className="w-3 h-3 text-purple-500" /> Result</span>
+        <div className="p-3 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-lg border border-purple-500/20 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-purple-500" /> AI Result</span>
                 <div className="flex gap-1">
-                    <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[9px]" onClick={() => handleCopy(content, id)}>
-                        {copiedId === id ? <CheckCheck className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => handleCopy(content, id)}>
+                        {copiedId === id ? <CheckCheck className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                        {copiedId === id ? 'Copied' : 'Copy'}
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[9px]" onClick={() => handleInsert(content)}>Insert</Button>
-                    {selectedText && <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[9px]" onClick={() => handleReplace(content)}>Replace</Button>}
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => handleInsert(content)}>
+                        <Plus className="w-3 h-3 mr-1" />Insert
+                    </Button>
+                    {selectedText && <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px]" onClick={() => handleReplace(content)}>
+                        <RefreshCw className="w-3 h-3 mr-1" />Replace
+                    </Button>}
                 </div>
             </div>
-            <div className="max-h-28 overflow-y-auto"><p className="text-[10px] whitespace-pre-wrap">{content}</p></div>
+            <div className="max-h-40 overflow-y-auto bg-background/50 rounded p-2"><p className="text-xs whitespace-pre-wrap leading-relaxed">{content}</p></div>
         </div>
     );
 
@@ -317,25 +324,25 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     const paragraphCount = documentContent.split(/\n\n+/).filter(p => p.trim()).length;
 
     return (
-        <div className="h-full w-full flex flex-col bg-background">
-            {/* Header - Fixed */}
-            <div className="shrink-0 flex items-center justify-between p-2.5 border-b bg-gradient-to-r from-purple-500/5 to-pink-500/5">
+        <div className="h-full w-full flex flex-col bg-background overflow-hidden">
+            {/* Header - Fixed at top */}
+            <div className="flex-shrink-0 flex items-center justify-between p-3 border-b bg-gradient-to-r from-purple-500/5 to-pink-500/5">
                 <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500">
-                        <Sparkles className="w-3.5 h-3.5 text-white" />
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg">
+                        <Sparkles className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-xs">AI Assistant</h3>
-                        <p className="text-[9px] text-muted-foreground">{LANGCHAIN_CONFIG.model.split('-').slice(0, 2).join(' ').toUpperCase()}</p>
+                        <h3 className="font-semibold text-sm">AI Assistant</h3>
+                        <p className="text-[10px] text-muted-foreground">{LANGCHAIN_CONFIG.model.split('-').slice(0, 2).join(' ').toUpperCase()}</p>
                     </div>
                 </div>
-                <Badge variant={configValidation.valid ? 'default' : 'destructive'} className={configValidation.valid ? 'bg-green-500/20 text-green-600 text-[9px] h-5' : 'text-[9px] h-5'}>
+                <Badge variant={configValidation.valid ? 'default' : 'destructive'} className={configValidation.valid ? 'bg-green-500/20 text-green-600 text-[10px] h-6 px-2' : 'text-[10px] h-6 px-2'}>
                     {configValidation.valid ? '✓ Ready' : 'Not Configured'}
                 </Badge>
             </div>
 
             {/* Stats Bar - Fixed */}
-            <div className="shrink-0 px-2.5 py-1.5 border-b bg-muted/30 flex items-center justify-between text-[9px]">
+            <div className="flex-shrink-0 px-3 py-2 border-b bg-muted/30 flex items-center justify-between text-[10px]">
                 <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {wordCount} words</span>
                     <span className="flex items-center gap-1"><Type className="w-3 h-3" /> {charCount} chars</span>
@@ -344,46 +351,46 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                     <div className="flex items-center gap-1.5">
                         <Gauge className="w-3 h-3" />
                         <span className={`font-bold ${getReadabilityColor(readability.score)}`}>{readability.score}</span>
-                        <Badge variant="outline" className="text-[8px] h-4 py-0">{readability.gradeLevel}</Badge>
+                        <Badge variant="outline" className="text-[9px] h-5 py-0">{readability.gradeLevel}</Badge>
                     </div>
                 )}
             </div>
 
-            {/* Tabs - Fill remaining space */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <TabsList className="shrink-0 grid grid-cols-5 mx-2 mt-2 h-7">
-                    <TabsTrigger value="actions" className="text-[9px] h-6 data-[state=active]:shadow-none"><Zap className="w-3 h-3 mr-0.5" />Actions</TabsTrigger>
-                    <TabsTrigger value="chat" className="text-[9px] h-6 data-[state=active]:shadow-none"><MessageSquare className="w-3 h-3 mr-0.5" />Chat</TabsTrigger>
-                    <TabsTrigger value="tools" className="text-[9px] h-6 data-[state=active]:shadow-none"><Wand2 className="w-3 h-3 mr-0.5" />Tools</TabsTrigger>
-                    <TabsTrigger value="templates" className="text-[9px] h-6 data-[state=active]:shadow-none"><FileText className="w-3 h-3 mr-0.5" />Create</TabsTrigger>
-                    <TabsTrigger value="insights" className="text-[9px] h-6 data-[state=active]:shadow-none"><BarChart3 className="w-3 h-3 mr-0.5" />Analyze</TabsTrigger>
+            {/* Tabs - Fill remaining space with proper scroll */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+                <TabsList className="flex-shrink-0 grid grid-cols-5 mx-3 mt-3 h-8">
+                    <TabsTrigger value="actions" className="text-[10px] h-7 data-[state=active]:shadow-none gap-1"><Zap className="w-3.5 h-3.5" />Actions</TabsTrigger>
+                    <TabsTrigger value="chat" className="text-[10px] h-7 data-[state=active]:shadow-none gap-1"><MessageSquare className="w-3.5 h-3.5" />Chat</TabsTrigger>
+                    <TabsTrigger value="tools" className="text-[10px] h-7 data-[state=active]:shadow-none gap-1"><Wand2 className="w-3.5 h-3.5" />Tools</TabsTrigger>
+                    <TabsTrigger value="templates" className="text-[10px] h-7 data-[state=active]:shadow-none gap-1"><FileText className="w-3.5 h-3.5" />Create</TabsTrigger>
+                    <TabsTrigger value="insights" className="text-[10px] h-7 data-[state=active]:shadow-none gap-1"><BarChart3 className="w-3.5 h-3.5" />Analyze</TabsTrigger>
                 </TabsList>
 
                 {/* ACTIONS TAB */}
-                <TabsContent value="actions" className="flex-1 m-0 mt-1 data-[state=active]:flex data-[state=active]:flex-col">
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
-                        <div className="px-2.5 pt-2.5 pb-4 space-y-3">
+                <TabsContent value="actions" className="flex-1 m-0 mt-2 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
+                    <ScrollArea className="flex-1 h-full">
+                        <div className="px-3 pt-3 pb-6 space-y-4">
                             {/* Selection Status */}
                             {selectedText ? (
-                                <div className="p-1.5 bg-green-500/10 rounded border border-green-500/20 flex items-center justify-between">
-                                    <span className="text-[9px] text-green-600 flex items-center gap-1"><Check className="w-3 h-3" /> Text Selected</span>
-                                    <Badge variant="secondary" className="text-[8px] h-4">{selectedText.split(/\s+/).length} words</Badge>
+                                <div className="p-2.5 bg-green-500/10 rounded-lg border border-green-500/20 flex items-center justify-between">
+                                    <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5 font-medium"><Check className="w-4 h-4" /> Text Selected</span>
+                                    <Badge variant="secondary" className="text-[10px] h-5">{selectedText.split(/\s+/).length} words</Badge>
                                 </div>
                             ) : (
-                                <div className="p-1.5 bg-amber-500/10 rounded border border-amber-500/20">
-                                    <span className="text-[9px] text-amber-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Select text to use AI actions</span>
+                                <div className="p-2.5 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                                    <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5"><AlertCircle className="w-4 h-4" /> Select text in the editor to use AI actions</span>
                                 </div>
                             )}
 
                             {/* Quick Actions */}
                             <div>
-                                <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><Zap className="w-3 h-3 text-yellow-500" /> Quick Actions</h4>
-                                <div className="grid grid-cols-2 gap-1">
+                                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Zap className="w-4 h-4 text-yellow-500" /> Quick Actions</h4>
+                                <div className="grid grid-cols-2 gap-1.5">
                                     {QUICK_ACTIONS.map((action) => (
-                                        <Button key={action.id} variant="outline" size="sm" className="justify-start h-7 text-[9px] px-2"
+                                        <Button key={action.id} variant="outline" size="sm" className="justify-start h-8 text-[11px] px-2.5 hover:bg-muted/80"
                                             disabled={(!selectedText && action.id !== 'continue') || isProcessing || !configValidation.valid}
                                             onClick={() => handleQuickAction(action)}>
-                                            <div className={`p-0.5 rounded ${action.color} mr-1`}><action.icon className="w-2.5 h-2.5 text-white" /></div>
+                                            <div className={`p-1 rounded ${action.color} mr-1.5 flex-shrink-0`}><action.icon className="w-3 h-3 text-white" /></div>
                                             {action.label}
                                         </Button>
                                     ))}
@@ -392,13 +399,13 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                             {/* Tone Options */}
                             <div>
-                                <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><Mic className="w-3 h-3 text-blue-500" /> Change Tone</h4>
-                                <div className="grid grid-cols-3 gap-1">
+                                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Mic className="w-4 h-4 text-blue-500" /> Change Tone</h4>
+                                <div className="grid grid-cols-3 gap-1.5">
                                     {TONE_OPTIONS.map((tone) => (
-                                        <Button key={tone.id} variant="outline" size="sm" className="h-6 text-[9px] px-1.5"
+                                        <Button key={tone.id} variant="outline" size="sm" className="h-7 text-[10px] px-2 hover:bg-muted/80"
                                             disabled={!selectedText || isProcessing || !configValidation.valid}
                                             onClick={() => handleToneChange(tone)}>
-                                            <tone.icon className="w-2.5 h-2.5 mr-0.5" />{tone.label}
+                                            <tone.icon className="w-3 h-3 mr-1" />{tone.label}
                                         </Button>
                                     ))}
                                 </div>
@@ -406,13 +413,13 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                             {/* Format Options */}
                             <div>
-                                <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><AlignLeft className="w-3 h-3 text-green-500" /> Format As</h4>
-                                <div className="grid grid-cols-2 gap-1">
+                                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><AlignLeft className="w-4 h-4 text-green-500" /> Format As</h4>
+                                <div className="grid grid-cols-2 gap-1.5">
                                     {FORMAT_OPTIONS.map((format) => (
-                                        <Button key={format.id} variant="outline" size="sm" className="justify-start h-6 text-[9px] px-2"
+                                        <Button key={format.id} variant="outline" size="sm" className="justify-start h-7 text-[10px] px-2.5 hover:bg-muted/80"
                                             disabled={!selectedText || isProcessing || !configValidation.valid}
                                             onClick={() => handleFormatChange(format)}>
-                                            <format.icon className="w-2.5 h-2.5 mr-1" />{format.label}
+                                            <format.icon className="w-3 h-3 mr-1.5" />{format.label}
                                         </Button>
                                     ))}
                                 </div>
@@ -420,13 +427,13 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                             {/* Writing Styles */}
                             <div>
-                                <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><Palette className="w-3 h-3 text-purple-500" /> Writing Styles</h4>
-                                <div className="grid grid-cols-2 gap-1">
+                                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Palette className="w-4 h-4 text-purple-500" /> Writing Styles</h4>
+                                <div className="grid grid-cols-2 gap-1.5">
                                     {WRITING_STYLES.map((style) => (
-                                        <Button key={style.id} variant="outline" size="sm" className="justify-start h-6 text-[9px] px-2"
+                                        <Button key={style.id} variant="outline" size="sm" className="justify-start h-7 text-[10px] px-2.5 hover:bg-muted/80"
                                             disabled={!selectedText || isProcessing || !configValidation.valid}
                                             onClick={() => handleApplyStyle(style)}>
-                                            <span className="mr-1 text-xs">{style.icon}</span>{style.name}
+                                            <span className="mr-1.5 text-sm">{style.icon}</span>{style.name}
                                         </Button>
                                     ))}
                                 </div>
@@ -434,15 +441,15 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                             {/* Quick Generate */}
                             <div>
-                                <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><Sparkle className="w-3 h-3 text-pink-500" /> Quick Generate</h4>
+                                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Sparkle className="w-4 h-4 text-pink-500" /> Quick Generate</h4>
                                 <Input value={quickGenerateInput} onChange={(e) => setQuickGenerateInput(e.target.value)}
-                                    placeholder="Enter topic or use selected text..." className="h-7 text-[10px] mb-1.5" />
-                                <div className="grid grid-cols-3 gap-1">
+                                    placeholder="Enter topic or use selected text..." className="h-8 text-xs mb-2" />
+                                <div className="grid grid-cols-3 gap-1.5">
                                     {QUICK_GENERATE.map((option) => (
-                                        <Button key={option.id} variant="outline" size="sm" className="h-6 text-[9px] px-1"
+                                        <Button key={option.id} variant="outline" size="sm" className="h-7 text-[10px] px-1.5 hover:bg-muted/80"
                                             disabled={(!quickGenerateInput && !selectedText) || isProcessing || !configValidation.valid}
                                             onClick={() => handleQuickGenerate(option)}>
-                                            <option.icon className="w-2.5 h-2.5 mr-0.5" />{option.label}
+                                            <option.icon className="w-3 h-3 mr-1" />{option.label}
                                         </Button>
                                     ))}
                                 </div>
@@ -450,13 +457,13 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                             {/* Content Enhancers */}
                             <div>
-                                <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><Sparkles className="w-3 h-3 text-yellow-500" /> Content Enhancers</h4>
-                                <div className="grid grid-cols-2 gap-1">
+                                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-yellow-500" /> Content Enhancers</h4>
+                                <div className="grid grid-cols-2 gap-1.5">
                                     {CONTENT_ENHANCERS.map((enhancer) => (
-                                        <Button key={enhancer.id} variant="outline" size="sm" className="justify-start h-6 text-[9px] px-2"
+                                        <Button key={enhancer.id} variant="outline" size="sm" className="justify-start h-7 text-[10px] px-2.5 hover:bg-muted/80"
                                             disabled={!selectedText || isProcessing || !configValidation.valid}
                                             onClick={() => runAIAction(selectedText, enhancer.prompt)}>
-                                            <enhancer.icon className="w-2.5 h-2.5 mr-1" />{enhancer.label}
+                                            <enhancer.icon className="w-3 h-3 mr-1.5" />{enhancer.label}
                                         </Button>
                                     ))}
                                 </div>
@@ -464,17 +471,17 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                             {/* SEO & Marketing */}
                             <div>
-                                <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><TrendingUp className="w-3 h-3 text-emerald-500" /> SEO & Marketing</h4>
-                                <div className="grid grid-cols-1 gap-1">
+                                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><TrendingUp className="w-4 h-4 text-emerald-500" /> SEO & Marketing</h4>
+                                <div className="grid grid-cols-1 gap-1.5">
                                     {SEO_TOOLS.map((tool) => (
-                                        <Button key={tool.id} variant="outline" size="sm" className="justify-start h-6 text-[9px] px-2"
+                                        <Button key={tool.id} variant="outline" size="sm" className="justify-start h-7 text-[10px] px-2.5 hover:bg-muted/80"
                                             disabled={(!selectedText && tool.id === 'keywords') || isProcessing || !configValidation.valid}
                                             onClick={() => {
                                                 const text = tool.id === 'keywords' ? selectedText : (quickGenerateInput || selectedText);
                                                 if (!text.trim()) { toast.error('Enter text or select content'); return; }
                                                 runAIAction(tool.id === 'keywords' ? text : tool.prompt + text, tool.id === 'keywords' ? tool.prompt : 'You are a marketing expert.');
                                             }}>
-                                            <tool.icon className="w-2.5 h-2.5 mr-1" />{tool.label}
+                                            <tool.icon className="w-3 h-3 mr-1.5" />{tool.label}
                                         </Button>
                                     ))}
                                 </div>
@@ -482,13 +489,13 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                             {/* Professional Actions */}
                             <div>
-                                <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><Briefcase className="w-3 h-3 text-indigo-500" /> Professional Tools</h4>
-                                <div className="grid grid-cols-1 gap-1">
+                                <h4 className="text-xs font-semibold mb-2 flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-indigo-500" /> Professional Tools</h4>
+                                <div className="grid grid-cols-1 gap-1.5">
                                     {PROFESSIONAL_ACTIONS.map((action) => (
-                                        <Button key={action.id} variant="outline" size="sm" className="justify-start h-6 text-[9px] px-2"
+                                        <Button key={action.id} variant="outline" size="sm" className="justify-start h-7 text-[10px] px-2.5 hover:bg-muted/80"
                                             disabled={!selectedText || isProcessing || !configValidation.valid}
                                             onClick={() => runAIAction(selectedText, action.prompt)}>
-                                            <action.icon className="w-2.5 h-2.5 mr-1" />{action.label}
+                                            <action.icon className="w-3 h-3 mr-1.5" />{action.label}
                                         </Button>
                                     ))}
                                 </div>
@@ -496,19 +503,19 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                             {/* Processing/Result */}
                             {isProcessing && (
-                                <div className="flex items-center justify-center gap-2 py-2 text-muted-foreground">
-                                    <Loader2 className="w-4 h-4 animate-spin" /><span className="text-[10px]">Processing...</span>
+                                <div className="flex items-center justify-center gap-2 py-3 text-muted-foreground">
+                                    <Loader2 className="w-5 h-5 animate-spin" /><span className="text-xs">AI is processing...</span>
                                 </div>
                             )}
                             {generatedContent && !isProcessing && <ResultCard content={generatedContent} id="gen" />}
                         </div>
-                    </div>
+                    </ScrollArea>
                 </TabsContent>
 
                 {/* CHAT TAB */}
-                <TabsContent value="chat" className="flex-1 flex flex-col m-0 mt-1 min-h-0">
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
-                        <div className="px-2.5 pt-2.5 pb-2.5">
+                <TabsContent value="chat" className="flex-1 flex flex-col m-0 mt-2 min-h-0 overflow-hidden">
+                    <ScrollArea className="flex-1">
+                        <div className="px-3 pt-3 pb-3">
                         {messages.length === 0 ? (
                             <div className="text-center py-6">
                                 <Bot className="w-8 h-8 mx-auto mb-2 text-muted-foreground/40" />
@@ -545,18 +552,18 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                             </div>
                         )}
                         </div>
-                    </div>
-                    <div className="shrink-0 p-2.5 border-t">
-                        {isStreaming && <div className="flex items-center gap-1 text-[9px] text-muted-foreground mb-1"><Loader2 className="w-3 h-3 animate-spin" /> Generating...</div>}
+                    </ScrollArea>
+                    <div className="flex-shrink-0 p-3 border-t bg-background">
+                        {isStreaming && <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> AI is generating...</div>}
                         <Textarea value={input} onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                            placeholder="Ask AI anything..." className="min-h-[40px] resize-none text-[10px] mb-1.5" disabled={isStreaming || !configValidation.valid} />
+                            placeholder="Ask AI anything..." className="min-h-[50px] resize-none text-xs mb-2" disabled={isStreaming || !configValidation.valid} />
                         <div className="flex items-center justify-between">
-                            <Button variant="ghost" size="sm" onClick={() => { setMessages([]); setStreamingText(''); }} disabled={messages.length === 0} className="text-[9px] h-6 px-2">
-                                <Trash2 className="w-3 h-3 mr-0.5" /> Clear
+                            <Button variant="ghost" size="sm" onClick={() => { setMessages([]); setStreamingText(''); }} disabled={messages.length === 0} className="text-[10px] h-7 px-2">
+                                <Trash2 className="w-3.5 h-3.5 mr-1" /> Clear
                             </Button>
-                            <Button onClick={handleSendMessage} disabled={!input.trim() || isStreaming || !configValidation.valid} size="sm" className="bg-gradient-to-r from-purple-500 to-pink-500 h-6 text-[10px]">
-                                {isStreaming ? <StopCircle className="w-3 h-3 mr-0.5" /> : <Send className="w-3 h-3 mr-0.5" />}
+                            <Button onClick={handleSendMessage} disabled={!input.trim() || isStreaming || !configValidation.valid} size="sm" className="bg-gradient-to-r from-purple-500 to-pink-500 h-7 text-xs px-4">
+                                {isStreaming ? <StopCircle className="w-3.5 h-3.5 mr-1" /> : <Send className="w-3.5 h-3.5 mr-1" />}
                                 {isStreaming ? 'Stop' : 'Send'}
                             </Button>
                         </div>
@@ -564,9 +571,9 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 </TabsContent>
 
                 {/* TOOLS TAB */}
-                <TabsContent value="tools" className="flex-1 m-0 mt-1 data-[state=active]:flex data-[state=active]:flex-col">
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
-                        <div className="px-2.5 pt-2.5 pb-4 space-y-2">
+                <TabsContent value="tools" className="flex-1 m-0 mt-2 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
+                    <ScrollArea className="flex-1 h-full">
+                        <div className="px-3 pt-3 pb-6 space-y-3">
                             {/* Translate */}
                             <div className="p-2 rounded-lg border bg-blue-500/5">
                                 <h4 className="text-[10px] font-semibold mb-1.5 flex items-center gap-1"><Globe className="w-3 h-3 text-blue-500" /> Translate</h4>
@@ -694,13 +701,13 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
                             {generatedContent && !isProcessing && <ResultCard content={generatedContent} id="tool-gen" />}
                         </div>
-                    </div>
+                    </ScrollArea>
                 </TabsContent>
 
                 {/* TEMPLATES TAB */}
-                <TabsContent value="templates" className="flex-1 m-0 mt-1 data-[state=active]:flex data-[state=active]:flex-col">
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
-                        <div className="px-2.5 pt-2.5 pb-4">
+                <TabsContent value="templates" className="flex-1 m-0 mt-2 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
+                    <ScrollArea className="flex-1 h-full">
+                        <div className="px-3 pt-3 pb-6">
                             {!selectedTemplate ? (
                                 <div className="space-y-2">
                                     {['social', 'business', 'marketing', 'academic', 'creative'].map(category => {
@@ -773,13 +780,13 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </ScrollArea>
                 </TabsContent>
 
                 {/* INSIGHTS TAB */}
-                <TabsContent value="insights" className="flex-1 m-0 mt-1 data-[state=active]:flex data-[state=active]:flex-col">
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
-                        <div className="px-2.5 pt-2.5 pb-4 space-y-2">
+                <TabsContent value="insights" className="flex-1 m-0 mt-2 data-[state=active]:flex data-[state=active]:flex-col overflow-hidden">
+                    <ScrollArea className="flex-1 h-full">
+                        <div className="px-3 pt-3 pb-6 space-y-3">
                             <Button onClick={handleAnalyzeDocument} disabled={!documentContent || isProcessing} className="w-full h-8 text-[10px]" variant={intelligence ? 'outline' : 'default'}>
                                 {isProcessing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <BarChart3 className="w-3 h-3 mr-1" />}
                                 {intelligence ? 'Re-analyze' : 'Analyze Document'}
@@ -857,11 +864,11 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                                                 ))}
                                             </div>
                                         </div>
-                                    )}
-                                </>
+                                )}
+                            </>
                             )}
                         </div>
-                    </div>
+                    </ScrollArea>
                 </TabsContent>
             </Tabs>
         </div>

@@ -31,7 +31,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import * as aiService from '@/services/aiService';
+import { langchainUtils } from '@/lib/langchain/llm';
+import { OPERATION_CONFIGS } from '@/lib/langchain/config';
+import type { StreamChunk } from '@/lib/langchain/types';
 import { toast } from 'react-hot-toast';
 
 interface AIToolbarProps {
@@ -53,10 +55,21 @@ export const AIToolbar: React.FC<AIToolbarProps> = ({
     const [showGenerateDialog, setShowGenerateDialog] = useState(false);
     const [generatePrompt, setGeneratePrompt] = useState('');
 
-    const handleAIAction = async (action: () => Promise<string>, successMessage: string) => {
+    // Unified AI action handler using LangChain
+    const handleAIAction = async (prompt: string, systemPrompt: string, operation: 'grammar' | 'rewrite' | 'expand' | 'summarize', successMessage: string) => {
         setIsLoading(true);
         try {
-            const result = await action();
+            let result = '';
+            await langchainUtils.streamComplete(
+                prompt,
+                (chunk: StreamChunk) => {
+                    if (!chunk.done) {
+                        result += chunk.content;
+                    }
+                },
+                systemPrompt,
+                operation
+            );
             onReplace(result);
             toast.success(successMessage);
             onClose?.();
@@ -72,7 +85,17 @@ export const AIToolbar: React.FC<AIToolbarProps> = ({
 
         setIsLoading(true);
         try {
-            const result = await aiService.generateContent(generatePrompt);
+            let result = '';
+            await langchainUtils.streamComplete(
+                `Write a well-structured document about: "${generatePrompt}". Include relevant details and maintain a professional tone.`,
+                (chunk: StreamChunk) => {
+                    if (!chunk.done) {
+                        result += chunk.content;
+                    }
+                },
+                OPERATION_CONFIGS.generate.systemPrompt,
+                'generate'
+            );
             onInsert(result);
             toast.success('Content generated successfully!');
             setShowGenerateDialog(false);
@@ -105,95 +128,109 @@ export const AIToolbar: React.FC<AIToolbarProps> = ({
                         <span className="text-xs font-medium text-white">AI</span>
                     </div>
 
-                    {selectedText ? (
-                        <>
-                            {/* Quick Actions for Selected Text */}
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleAIAction(
-                                    () => aiService.improveGrammar(selectedText),
-                                    'Grammar improved!'
-                                )}
-                                disabled={isLoading}
-                                className="text-xs"
-                            >
-                                <Check className="w-3 h-3 mr-1" />
-                                Fix
-                            </Button>
+                        {selectedText ? (
+                            <>
+                                {/* Quick Actions for Selected Text */}
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleAIAction(
+                                        `Fix the grammar in this text:\n\n${selectedText}`,
+                                        OPERATION_CONFIGS.grammar.systemPrompt,
+                                        'grammar',
+                                        'Grammar improved!'
+                                    )}
+                                    disabled={isLoading}
+                                    className="text-xs"
+                                >
+                                    <Check className="w-3 h-3 mr-1" />
+                                    Fix
+                                </Button>
 
-                            {/* More Options Dropdown */}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button size="sm" variant="ghost" disabled={isLoading} className="text-xs">
-                                        <RefreshCw className="w-3 h-3 mr-1" />
-                                        Rewrite
-                                        <ChevronDown className="w-3 h-3 ml-1" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="w-48">
-                                    <DropdownMenuLabel>Change Tone</DropdownMenuLabel>
-                                    <DropdownMenuItem
-                                        onClick={() => handleAIAction(
-                                            () => aiService.changeTone(selectedText, 'professional'),
-                                            'Tone changed to professional'
-                                        )}
-                                    >
-                                        <Type className="w-4 h-4 mr-2" />
-                                        Professional
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => handleAIAction(
-                                            () => aiService.changeTone(selectedText, 'formal'),
-                                            'Tone changed to formal'
-                                        )}
-                                    >
-                                        <Type className="w-4 h-4 mr-2" />
-                                        Formal
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => handleAIAction(
-                                            () => aiService.changeTone(selectedText, 'casual'),
-                                            'Tone changed to casual'
-                                        )}
-                                    >
-                                        <Type className="w-4 h-4 mr-2" />
-                                        Casual
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => handleAIAction(
-                                            () => aiService.changeTone(selectedText, 'friendly'),
-                                            'Tone changed to friendly'
-                                        )}
-                                    >
-                                        <Type className="w-4 h-4 mr-2" />
-                                        Friendly
-                                    </DropdownMenuItem>
+                                {/* More Options Dropdown */}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button size="sm" variant="ghost" disabled={isLoading} className="text-xs">
+                                            <RefreshCw className="w-3 h-3 mr-1" />
+                                            Rewrite
+                                            <ChevronDown className="w-3 h-3 ml-1" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-48">
+                                        <DropdownMenuLabel>Change Tone</DropdownMenuLabel>
+                                        <DropdownMenuItem
+                                            onClick={() => handleAIAction(
+                                                `Rewrite this text in a professional, business-like tone:\n\n${selectedText}`,
+                                                OPERATION_CONFIGS.tone.systemPrompt,
+                                                'rewrite',
+                                                'Tone changed to professional'
+                                            )}
+                                        >
+                                            <Type className="w-4 h-4 mr-2" />
+                                            Professional
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => handleAIAction(
+                                                `Rewrite this text in a formal and academic tone:\n\n${selectedText}`,
+                                                OPERATION_CONFIGS.tone.systemPrompt,
+                                                'rewrite',
+                                                'Tone changed to formal'
+                                            )}
+                                        >
+                                            <Type className="w-4 h-4 mr-2" />
+                                            Formal
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => handleAIAction(
+                                                `Rewrite this text in a casual and conversational tone:\n\n${selectedText}`,
+                                                OPERATION_CONFIGS.tone.systemPrompt,
+                                                'rewrite',
+                                                'Tone changed to casual'
+                                            )}
+                                        >
+                                            <Type className="w-4 h-4 mr-2" />
+                                            Casual
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => handleAIAction(
+                                                `Rewrite this text in a friendly and approachable tone:\n\n${selectedText}`,
+                                                OPERATION_CONFIGS.tone.systemPrompt,
+                                                'rewrite',
+                                                'Tone changed to friendly'
+                                            )}
+                                        >
+                                            <Type className="w-4 h-4 mr-2" />
+                                            Friendly
+                                        </DropdownMenuItem>
 
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuLabel>Modify Length</DropdownMenuLabel>
-                                    <DropdownMenuItem
-                                        onClick={() => handleAIAction(
-                                            () => aiService.expandText(selectedText),
-                                            'Text expanded'
-                                        )}
-                                    >
-                                        <Plus className="w-4 h-4 mr-2" />
-                                        Expand
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => handleAIAction(
-                                            () => aiService.shortenText(selectedText),
-                                            'Text shortened'
-                                        )}
-                                    >
-                                        <Minus className="w-4 h-4 mr-2" />
-                                        Shorten
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </>
-                    ) : (
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuLabel>Modify Length</DropdownMenuLabel>
+                                        <DropdownMenuItem
+                                            onClick={() => handleAIAction(
+                                                `Expand this text with more details and examples:\n\n${selectedText}`,
+                                                OPERATION_CONFIGS.expand.systemPrompt,
+                                                'expand',
+                                                'Text expanded'
+                                            )}
+                                        >
+                                            <Plus className="w-4 h-4 mr-2" />
+                                            Expand
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => handleAIAction(
+                                                `Summarize this text concisely while keeping key points:\n\n${selectedText}`,
+                                                OPERATION_CONFIGS.summarize.systemPrompt,
+                                                'summarize',
+                                                'Text shortened'
+                                            )}
+                                        >
+                                            <Minus className="w-4 h-4 mr-2" />
+                                            Shorten
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </>
+                        ) : (
                         <>
                             {/* Generate New Content */}
                             <Button

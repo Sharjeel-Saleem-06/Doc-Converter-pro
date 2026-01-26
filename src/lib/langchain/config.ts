@@ -1,12 +1,29 @@
 /**
  * LangChain Configuration
  * Central configuration for all LangChain operations
+ * Now with multi-key load balancing support
  */
+
+// Get all available Groq API keys
+const getGroqApiKeys = (): string[] => {
+    const keys: string[] = [];
+    const keyNames = ['VITE_GROQ_API_KEY', 'VITE_GROQ_API_KEY_2', 'VITE_GROQ_API_KEY_3', 'VITE_GROQ_API_KEY_4'];
+    
+    keyNames.forEach(name => {
+        const key = import.meta.env[name];
+        if (key) keys.push(key);
+    });
+    
+    return keys;
+};
+
+export const GROQ_API_KEYS = getGroqApiKeys();
 
 export const LANGCHAIN_CONFIG = {
     // Groq Model Configuration
     model: import.meta.env.VITE_GROQ_MODEL || 'llama-3.3-70b-versatile',
     apiKey: import.meta.env.VITE_GROQ_API_KEY,
+    apiKeys: GROQ_API_KEYS, // All available keys for load balancing
 
     // Generation Parameters
     temperature: 0.7,
@@ -21,6 +38,11 @@ export const LANGCHAIN_CONFIG = {
     timeout: 30000, // 30 seconds
     maxRetries: 3,
     retryDelay: 1000, // 1 second
+
+    // External API Keys
+    huggingfaceApiKey: import.meta.env.VITE_HUGGINGFACE_API_KEY,
+    textrazorApiKey: import.meta.env.VITE_TEXTRAZOR_API_KEY,
+    languageToolApiUrl: import.meta.env.VITE_LANGUAGETOOL_API_URL || 'https://api.languagetool.org/v2',
 
     // LangSmith (Optional - for debugging)
     callbacks: import.meta.env.VITE_LANGCHAIN_TRACING_V2 === 'true' ? [{
@@ -128,10 +150,10 @@ export const ERROR_MESSAGES = {
 /**
  * Validate configuration
  */
-export function validateConfig(): { valid: boolean; errors: string[] } {
+export function validateConfig(): { valid: boolean; errors: string[]; keyCount: number } {
     const errors: string[] = [];
 
-    if (!LANGCHAIN_CONFIG.apiKey) {
+    if (!LANGCHAIN_CONFIG.apiKey && GROQ_API_KEYS.length === 0) {
         errors.push(ERROR_MESSAGES.noApiKey);
     }
 
@@ -142,6 +164,7 @@ export function validateConfig(): { valid: boolean; errors: string[] } {
     return {
         valid: errors.length === 0,
         errors,
+        keyCount: GROQ_API_KEYS.length,
     };
 }
 

@@ -85,10 +85,10 @@ const HomePage = () => {
   ];
 
   const stats = [
-    { number: "1M+", label: "Files Converted", icon: FileText, color: "text-blue-500" },
-    { number: "50K+", label: "Active Users", icon: Users, color: "text-purple-500" },
-    { number: "15+", label: "Formats Supported", icon: Settings, color: "text-green-500" },
-    { number: "99.9%", label: "Uptime", icon: Clock, color: "text-orange-500" }
+    { number: "26+", label: "Formats Supported", icon: FileText, color: "text-blue-500" },
+    { number: "100%", label: "Client-Side Processing", icon: Shield, color: "text-purple-500" },
+    { number: "0", label: "Data Stored on Servers", icon: Settings, color: "text-green-500" },
+    { number: "Free", label: "Forever", icon: Clock, color: "text-orange-500" }
   ];
 
   const supportedFormats = [
@@ -96,29 +96,30 @@ const HomePage = () => {
     'JSON', 'XML', 'RTF', 'EPUB', 'LaTeX', 'PNG', 'JPG'
   ];
 
-  const testimonials = [
-  {
-      name: "Sarah Johnson",
-      role: "Content Manager",
-      content: "DocConverter Pro has revolutionized our document workflow. The batch processing feature saves us hours every week!",
+  // Feature highlights instead of fake testimonials
+  const featureHighlights = [
+    {
+      title: "Privacy Guaranteed",
+      role: "Your Data Stays Local",
+      content: "All document conversions happen directly in your browser. Your files never touch our servers, ensuring complete privacy and security.",
       rating: 5,
-      avatar: "SJ",
+      avatar: "🔒",
       color: "from-blue-500 to-purple-500"
-  },
-  {
-      name: "Michael Chen",
-      role: "Freelance Designer",
-      content: "The quality of conversions is outstanding. I can trust DocConverter Pro with my client's important documents.",
+    },
+    {
+      title: "AI-Powered Editor",
+      role: "Smart Document Editing",
+      content: "Built-in AI assistant helps you improve grammar, change tone, expand content, and generate professional documents with ease.",
       rating: 5,
-      avatar: "MC",
+      avatar: "🤖",
       color: "from-green-500 to-teal-500"
-  },
-  {
-      name: "Emily Rodriguez",
-      role: "Project Manager",
-      content: "Simple, fast, and reliable. Exactly what we needed for our team's document management needs.",
+    },
+    {
+      title: "Enterprise Quality",
+      role: "Professional Output",
+      content: "Advanced conversion algorithms preserve formatting, tables, images, and layouts - delivering results that match enterprise solutions.",
       rating: 5,
-      avatar: "ER",
+      avatar: "⚡",
       color: "from-pink-500 to-rose-500"
     }
   ];
@@ -512,7 +513,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Enhanced Testimonials */}
+      {/* Why Choose Us - Feature Highlights */}
       <section className="py-20">
         <div className="container mx-auto px-4">
           <motion.div
@@ -522,10 +523,10 @@ const HomePage = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Trusted by Professionals
+              Why Choose DocConverter Pro?
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300">
-              See what our users say about DocConverter Pro
+              Built with privacy, quality, and simplicity in mind
             </p>
           </motion.div>
 
@@ -536,7 +537,7 @@ const HomePage = () => {
             viewport={{ once: true }}
             className="grid grid-cols-1 md:grid-cols-3 gap-8"
           >
-            {testimonials.map((testimonial, index) => (
+            {featureHighlights.map((feature, index) => (
               <motion.div
                 key={index}
                 variants={itemVariants}
@@ -544,11 +545,11 @@ const HomePage = () => {
                 className="group relative"
               >
                 <motion.div
-                  className={`absolute inset-0 bg-gradient-to-r ${testimonial.color} rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-all duration-500`}
+                  className={`absolute inset-0 bg-gradient-to-r ${feature.color} rounded-2xl blur-xl opacity-0 group-hover:opacity-20 transition-all duration-500`}
                 />
                 <div className="relative glass rounded-2xl p-6 border border-white/20 h-full">
                   <div className="flex items-center gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
+                    {[...Array(feature.rating)].map((_, i) => (
                       <motion.div
                         key={i}
                         initial={{ scale: 0 }}
@@ -558,22 +559,22 @@ const HomePage = () => {
                         <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                       </motion.div>
                     ))}
-          </div>
+                  </div>
 
                   <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
-                      "{testimonial.content}"
-                    </p>
+                    {feature.content}
+                  </p>
                   
                   <div className="flex items-center gap-3">
                     <motion.div
-                      className={`w-12 h-12 rounded-full bg-gradient-to-r ${testimonial.color} flex items-center justify-center text-white font-bold shadow-lg`}
+                      className={`w-12 h-12 rounded-full bg-gradient-to-r ${feature.color} flex items-center justify-center text-2xl shadow-lg`}
                       whileHover={{ scale: 1.1 }}
                     >
-                      {testimonial.avatar}
+                      {feature.avatar}
                     </motion.div>
                     <div>
-                      <div className="font-semibold text-gray-900 dark:text-white">{testimonial.name}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">{testimonial.role}</div>
+                      <div className="font-semibold text-gray-900 dark:text-white">{feature.title}</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">{feature.role}</div>
                     </div>
                   </div>
                 </div>

@@ -74,9 +74,12 @@ import {
   Trash2,
   User,
   CheckCircle,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AIAssistantPanel } from '@/components/editor/AIAssistantPanel';
+import { AIErrorBoundary } from '@/components/ErrorBoundary';
 import { langchainUtils } from '@/lib/langchain/llm';
 import { validateConfig, LANGCHAIN_CONFIG, OPERATION_CONFIGS } from '@/lib/langchain/config';
 import type { StreamChunk, ToneType } from '@/lib/langchain/types';
@@ -107,6 +110,80 @@ const EditorPage: React.FC = () => {
   const [fileName, setFileName] = useState('document.txt');
   const [documentType, setDocumentType] = useState<'plain' | 'markdown'>('plain');
 
+  // Undo/Redo history state
+  const [history, setHistory] = useState<string[]>(['']);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const isUndoRedoAction = useRef(false);
+
+  // Track content changes for undo/redo
+  const updateContent = useCallback((newContent: string, addToHistory = true) => {
+    setContent(newContent);
+    
+    if (addToHistory && !isUndoRedoAction.current) {
+      setHistory(prev => {
+        // Remove any future history if we're in the middle of the stack
+        const newHistory = prev.slice(0, historyIndex + 1);
+        // Add new state
+        newHistory.push(newContent);
+        // Keep history limited to 50 entries
+        if (newHistory.length > 50) {
+          newHistory.shift();
+          return newHistory;
+        }
+        return newHistory;
+      });
+      setHistoryIndex(prev => Math.min(prev + 1, 49));
+    }
+    isUndoRedoAction.current = false;
+  }, [historyIndex]);
+
+  // Undo function
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      isUndoRedoAction.current = true;
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setContent(history[newIndex]);
+      toast.success('Undo successful', { icon: '↩️', duration: 1500 });
+    } else {
+      toast.error('Nothing to undo');
+    }
+  }, [historyIndex, history]);
+
+  // Redo function
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      isUndoRedoAction.current = true;
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setContent(history[newIndex]);
+      toast.success('Redo successful', { icon: '↪️', duration: 1500 });
+    } else {
+      toast.error('Nothing to redo');
+    }
+  }, [historyIndex, history]);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
+
   // UI state
   const [showAIPanel, setShowAIPanel] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
@@ -134,7 +211,7 @@ const EditorPage: React.FC = () => {
   // Calculate stats
   const stats = calculateStats(content);
 
-  // Handle text selection
+  // Handle text selection with improved positioning
   const handleTextSelection = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -146,38 +223,79 @@ const EditorPage: React.FC = () => {
     setCursorPosition({ start, end });
     setSelectedText(selected);
 
-    if (selected.trim()) {
-      // Calculate position for floating toolbar
-      const rect = textarea.getBoundingClientRect();
-      const lineHeight = 24; // Approximate line height
-      const charsPerLine = Math.floor(rect.width / 8); // Approximate chars per line
-      const startLine = Math.floor(start / charsPerLine);
-
-      setFloatingToolbarPosition({
-        x: rect.left + 100,
-        y: rect.top + (startLine * lineHeight) - 50,
-      });
-      setShowFloatingToolbar(true);
+    if (selected.trim() && selected.length > 0) {
+      // Use window selection API for accurate positioning
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const selectionRect = range.getBoundingClientRect();
+        
+        // Position the toolbar above the selection
+        setFloatingToolbarPosition({
+          x: Math.max(20, selectionRect.left + (selectionRect.width / 2) - 150), // Center above selection
+          y: Math.max(20, selectionRect.top + window.scrollY - 60), // Above selection with scroll offset
+        });
+        setShowFloatingToolbar(true);
+      } else {
+        // Fallback: position based on textarea
+        const rect = textarea.getBoundingClientRect();
+        setFloatingToolbarPosition({
+          x: rect.left + 100,
+          y: rect.top + window.scrollY + 50,
+        });
+        setShowFloatingToolbar(true);
+      }
     } else {
       setShowFloatingToolbar(false);
     }
   }, [content]);
 
-  // Listen for selection changes
+  // Listen for selection changes with debounce
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
+    let selectionTimeout: NodeJS.Timeout;
+
+    const handleSelectionChange = () => {
+      // Clear any pending timeout
+      if (selectionTimeout) clearTimeout(selectionTimeout);
+      
+      // Debounce the selection handling
+      selectionTimeout = setTimeout(() => {
+        if (document.activeElement === textarea) {
+          handleTextSelection();
+        }
+      }, 50);
+    };
+
     const handleMouseUp = () => {
-      setTimeout(handleTextSelection, 10);
+      handleSelectionChange();
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      // Only handle arrow keys and shift+arrow for selection
+      if (e.shiftKey || ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        handleSelectionChange();
+      }
+    };
+
+    // Hide toolbar when clicking outside
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!textarea.contains(e.target as Node)) {
+        setShowFloatingToolbar(false);
+      }
     };
 
     textarea.addEventListener('mouseup', handleMouseUp);
-    textarea.addEventListener('keyup', handleTextSelection);
+    textarea.addEventListener('keyup', handleKeyUp);
+    document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
+      if (selectionTimeout) clearTimeout(selectionTimeout);
       textarea.removeEventListener('mouseup', handleMouseUp);
-      textarea.removeEventListener('keyup', handleTextSelection);
+      textarea.removeEventListener('keyup', handleKeyUp);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [handleTextSelection]);
 
@@ -226,7 +344,7 @@ const EditorPage: React.FC = () => {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setContent(e.target?.result as string);
+        updateContent(e.target?.result as string);
         setFileName(file.name);
         toast.success('File loaded!', { icon: '📄' });
       };
@@ -239,7 +357,7 @@ const EditorPage: React.FC = () => {
     const savedContent = localStorage.getItem('editor_content');
     const savedFileName = localStorage.getItem('editor_filename');
     if (savedContent) {
-      setContent(savedContent);
+      updateContent(savedContent, false); // Don't add to history on initial load
     }
     if (savedFileName) {
       setFileName(savedFileName);
@@ -300,13 +418,13 @@ const EditorPage: React.FC = () => {
           } else {
             // Apply the result
             if (action === 'continue') {
-              setContent(prev => prev + '\n\n' + fullResponse);
+              updateContent(content + '\n\n' + fullResponse);
             } else {
               const newContent =
                 content.substring(0, cursorPosition.start) +
                 fullResponse +
                 content.substring(cursorPosition.end);
-              setContent(newContent);
+              updateContent(newContent);
             }
             setIsStreaming(false);
             setIsAIProcessing(false);
@@ -331,7 +449,7 @@ const EditorPage: React.FC = () => {
 
     const pos = textarea.selectionEnd || content.length;
     const newContent = content.substring(0, pos) + '\n\n' + text + content.substring(pos);
-    setContent(newContent);
+    updateContent(newContent);
     toast.success('Text inserted!');
   };
 
@@ -346,7 +464,7 @@ const EditorPage: React.FC = () => {
       content.substring(0, cursorPosition.start) +
       text +
       content.substring(cursorPosition.end);
-    setContent(newContent);
+    updateContent(newContent);
     setSelectedText('');
     setShowFloatingToolbar(false);
     toast.success('Text replaced!');
@@ -509,6 +627,47 @@ const EditorPage: React.FC = () => {
 
                 <Separator />
 
+                {/* Undo/Redo Toolbar */}
+                <div className="px-6 py-2 bg-muted/20 border-b flex items-center gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleUndo}
+                        disabled={historyIndex <= 0}
+                        className="text-xs h-8"
+                      >
+                        <Undo2 className="w-4 h-4 mr-1" />
+                        Undo
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Undo (Cmd/Ctrl+Z)</TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRedo}
+                        disabled={historyIndex >= history.length - 1}
+                        className="text-xs h-8"
+                      >
+                        <Redo2 className="w-4 h-4 mr-1" />
+                        Redo
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Redo (Cmd/Ctrl+Shift+Z)</TooltipContent>
+                  </Tooltip>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  <span className="text-xs text-muted-foreground">
+                    History: {historyIndex + 1} / {history.length}
+                  </span>
+                </div>
+
                 {/* AI Toolbar */}
                 {configValidation.valid && (
                   <div className="px-6 py-3 bg-muted/30 border-b flex items-center gap-2 flex-wrap">
@@ -659,7 +818,7 @@ const EditorPage: React.FC = () => {
                         <Textarea
                           ref={textareaRef}
                           value={content}
-                          onChange={(e) => setContent(e.target.value)}
+                          onChange={(e) => updateContent(e.target.value)}
                           placeholder="Start typing your document here... Select text to use AI features."
                           className="w-full h-full min-h-[400px] resize-none font-mono text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 p-6"
                           style={{ height: 'calc(100vh - 450px)' }}
@@ -746,12 +905,14 @@ const EditorPage: React.FC = () => {
               transition={{ duration: 0.3 }}
               className="h-full flex-shrink-0 border-l"
             >
-              <AIAssistantPanel
-                selectedText={selectedText}
-                documentContent={content}
-                onInsertText={handleInsertText}
-                onReplaceText={handleReplaceText}
-              />
+              <AIErrorBoundary onRetry={() => setShowAIPanel(true)}>
+                <AIAssistantPanel
+                  selectedText={selectedText}
+                  documentContent={content}
+                  onInsertText={handleInsertText}
+                  onReplaceText={handleReplaceText}
+                />
+              </AIErrorBoundary>
             </motion.div>
           )}
         </AnimatePresence>
