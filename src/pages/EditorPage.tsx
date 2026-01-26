@@ -479,7 +479,7 @@ const EditorPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Main Container */}
-      <div className="flex h-[calc(100vh-120px)]">
+      <div className="flex h-[calc(100vh-120px)] overflow-hidden">
         {/* Editor Section */}
         <div className={`flex-1 flex flex-col transition-all duration-300 ${showAIPanel ? 'pr-0' : ''}`}>
           {/* Header Bar */}
@@ -903,7 +903,7 @@ const EditorPage: React.FC = () => {
               animate={{ width: 380, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="h-full flex-shrink-0 border-l"
+              className="h-full flex-shrink-0 border-l overflow-hidden"
             >
               <AIErrorBoundary onRetry={() => setShowAIPanel(true)}>
                 <AIAssistantPanel
